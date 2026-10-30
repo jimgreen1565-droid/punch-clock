@@ -1,0 +1,51 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare static site
+        run: |
+          mkdir -p _site
+          # 手机网页版作为站点根（真实可用的打卡 App）
+          cp -r webapp/* _site/
+          # 桌面预览版放到 /demo 保留原始三栏预览
+          mkdir -p _site/demo
+          cp demo/preview.html _site/demo/index.html
+          cp demo/preview.css _site/demo/
+          cp demo/preview.js _site/demo/
+          cp demo/core-bundle.js _site/demo/
+          # 让根路径直接进入 webapp
+          test -f _site/index.html && echo "index ok"
+          # 静态资源缓存头由 Pages 默认处理；这里只打印体积
+          du -sh _site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
