@@ -19,7 +19,7 @@
   <!-- 主打卡区 -->
   <view class="punch-zone">
     <view class="halo halo-{{nextType}}"></view>
-    <view class="punch-btn btn-{{nextType}}" bindtap="onPunch" hover-class="punch-hover" hover-stay-time="80">
+    <view class="punch-btn btn-{{nextType}} {{btnDone ? 'is-done' : ''}}" bindtap="onPunch" hover-class="punch-hover" hover-stay-time="80">
       <view class="btn-time">{{clock}}</view>
       <view class="btn-label">{{nextLabel}}</view>
       <view class="btn-hint">{{busy ? busyText : tapHint}}</view>

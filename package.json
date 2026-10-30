@@ -14,9 +14,17 @@
     "build:preview": "node scripts/build-preview.js",
     "build:icons": "node scripts/make-icons.mjs",
     "shoot": "node scripts/shoot.js",
-    "sync:shared": "node scripts/sync-shared.js"
+    "sync:shared": "node scripts/sync-shared.js",
+    "test:web": "node tests/web.test.js",
+    "shoot:web": "node scripts/shoot-web.js",
+    "build:web": "node scripts/build-preview.js"
   },
-  "keywords": ["weixin", "miniprogram", "attendance", "punch-clock"],
+  "keywords": [
+    "weixin",
+    "miniprogram",
+    "attendance",
+    "punch-clock"
+  ],
   "license": "MIT",
   "devDependencies": {}
 }

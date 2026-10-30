@@ -185,6 +185,41 @@ test('首页 fixed：渲染班次、时间轴、点击上班再下班', async ()
 
   await page.onPunch();
   assert.ok(page.data.outText.indexOf(':') >= 0);
+  // 上下班都打完 -> 按钮进入"已完成"，且不再允许直接写入
+  assert.equal(page.data.nextLabel, '已完成');
+  assert.equal(page.data.btnDone, true);
+  page.onUnload();
+});
+
+test('首页：已完成后再点不直接写记录，确认「补一条」才写入', async () => {
+  resetAll();
+  const page = loadPage('../miniprogram/pages/index/index.js');
+  page.onLoad();
+
+  // 打满两次
+  await page.onPunch();
+  await page.onPunch();
+  assert.equal(page.data.btnDone, true);
+  const nBefore = JSON.parse(storage.PC_RECORDS || '[]').length;
+
+  // 第三次点击：应弹确认层（先设成"取消"，验证未确认不写入）
+  calls.modal.length = 0;
+  modalAnswer = { confirm: false };
+  await page.onPunch();
+  await new Promise((r) => setTimeout(r, 40));
+  const m = calls.modal[calls.modal.length - 1];
+  assert.ok(m, '已完成时点击应弹确认层');
+  assert.equal(m.title, '今日已完成打卡');
+  assert.equal(m.confirmText, '补一条');
+  assert.equal(JSON.parse(storage.PC_RECORDS || '[]').length, nBefore, '点取消时不应写入');
+
+  // 再点一次并确认 -> 写一条
+  modalAnswer = { confirm: true };
+  await page.onPunch();
+  await new Promise((r) => setTimeout(r, 40));
+  const recs = JSON.parse(storage.PC_RECORDS || '[]');
+  assert.equal(recs.length, nBefore + 1, '确认补一条后应写入');
+  assert.equal(require('../miniprogram/utils/store.js').verifyLocalChain().ok, true, '补录后链仍完整');
   page.onUnload();
 });
 

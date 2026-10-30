@@ -124,6 +124,11 @@
   transform: scale(0.955);
 }
 
+/* 上下班都打完：按钮降饱和，明确表达"不可再点（有确认弹层）" */
+.punch-btn.is-done {
+  filter: grayscale(0.15) brightness(0.97);
+}
+
 .btn-time {
   font-size: 76rpx;
   font-weight: 700;

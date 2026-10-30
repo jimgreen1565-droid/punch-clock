@@ -14,6 +14,7 @@ Page({
     ruleDesc: '',
     nextType: 'in',
     nextLabel: '上班打卡',
+    btnDone: false,
     tapHint: '点击打卡',
     busy: false,
     busyText: '正在打卡…',
@@ -183,12 +184,15 @@ Page({
       ruleTypeName: rules.ruleTypeName(rs.type),
       ruleDesc: rules.describeRule(rs),
       nextType: s.nextType,
-      nextLabel: s.nextType === 'in' ? '上班打卡' : '下班打卡',
+      nextLabel: s.day.inAt && s.day.outAt ? '已完成' : s.nextType === 'in' ? '上班打卡' : '下班打卡',
       tapHint: s.isRest ? '休息日打卡将记为加班' : '点击打卡',
       captionText: captionOf(s),
       // 首页不把「缺卡」当状态标签：那是待办，已经在下方 alerts 里显式列出，
       // 状态标签只表达「已经发生的结果」（正常/迟到/早退/工时不足/加班/休息）。
       statusLabel: s.day.hasAny && s.status !== 'missing' && s.status !== 'absent' ? s.statusLabel : '',
+      btnDone: !!(s.day.inAt && s.day.outAt),
+      btnLabel: s.day.inAt && s.day.outAt ? '已完成' : s.nextType === 'in' ? '上班打卡' : '下班打卡',
+      tapHint: s.day.inAt && s.day.outAt ? '今日已打完' : s.isRest ? '休息日打卡将记为加班' : '点击打卡',
       statusTone: s.statusTone,
       day: s.day,
       inText: s.inText,
@@ -262,12 +266,34 @@ Page({
 
   async onPunch() {
     if (this.data.busy) return;
+
+    // 上下班都打完：不直接写记录，弹确认让用户决定是否补录
+    if (this.data.btnDone) {
+      wx.showModal({
+        title: '今日已完成打卡',
+        content: '上班 ' + this.data.inText + ' · 下班 ' + this.data.outText + ' · 工时 ' + this.data.workText + '\n\n如需补一条记录（例如中途外出回来），可以点「补一条」。',
+        confirmText: '补一条',
+        cancelText: '不用了',
+        success: (r) => {
+          if (r.confirm) this.doPunchWith({ manual: true });
+        },
+      });
+      return;
+    }
+
+    // 必须 return/await：否则 await page.onPunch() 会在打卡完成前就 resolve，
+    // 上面的成功处理全变成异步悬空，测试里表现为「toast 为 0、inText 还是 --:--」。
+    return this.doPunchWith({});
+  },
+
+  async doPunchWith(opts) {
+    if (this.data.busy) return;
     this.setData({ busy: true });
     wx.showLoading({ title: '打卡中', mask: true });
 
     let res;
     try {
-      res = await punch.doPunch({});
+      res = await punch.doPunch(opts);
     } catch (e) {
       res = { ok: false, stage: 'exception', message: (e && e.message) || '打卡失败' };
     }
@@ -287,6 +313,11 @@ Page({
   },
 
   handleFail(res) {
+    if (res.stage === 'done') {
+      // 理论上已由 onPunch 前置拦截，这里是并发双击等竞态下的兜底
+      wx.showToast({ title: '今天已打完卡', icon: 'none' });
+      return;
+    }
     if (res.stage === 'geo') {
       wx.showModal({
         title: '不在打卡范围',

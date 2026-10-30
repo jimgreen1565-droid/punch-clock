@@ -206,8 +206,11 @@
     document.getElementById('sheetConfirm').onclick = function () {
       var inputEl = document.getElementById('sheetInput');
       var value = inputEl ? inputEl.value : undefined;
+      // 关键：先取出回调再关闭。closeSheet() 会把 sheetOnConfirm 置空，
+      // 之前写成「先 closeSheet 再 if (sheetOnConfirm)」导致所有「确定」按钮全部失效。
+      var cb = sheetOnConfirm;
       closeSheet();
-      if (sheetOnConfirm) sheetOnConfirm(value);
+      if (cb) cb(value);
     };
 
     $mask.classList.add('show');
@@ -326,7 +329,7 @@
       day: day,
       dayInfo: info,
       planMinutes: planMinutes,
-      nextType: !day.inRec ? 'in' : !day.outRec ? 'out' : 'in',
+      nextType: !day.inRec ? 'in' : !day.outRec ? 'out' : 'done',
       isRest: day.restDay,
       statusLabel: meta.label,
       statusTone: meta.tone,
@@ -473,11 +476,12 @@
       R.ruleTypeName(r.type) + '</span><span class="chip-arrow">›</span></button></div>';
     html += '<div class="rule-line">' + h(R.describeRule(r)) + '</div>';
 
-    html += '<div class="punch-zone"><div class="halo halo-' + s.nextType + '"></div>';
-    html += '<button class="punch-btn btn-' + s.nextType + '" id="punchBtn">';
+    html += '<div class="punch-zone"><div class="halo halo-' + (s.nextType === 'done' ? 'in' : s.nextType) + '"></div>';
+    var btnCls = s.nextType === 'done' ? 'done btn-in' : 'btn-' + s.nextType;
+    html += '<button class="punch-btn ' + btnCls + '" id="punchBtn">';
     html += '<span class="btn-time" id="clock">--:--:--</span>';
-    html += '<span class="btn-label">' + (s.nextType === 'in' ? '上班打卡' : '下班打卡') + '</span>';
-    html += '<span class="btn-hint">' + (s.isRest ? '休息日打卡将记为加班' : '点击打卡') + '</span>';
+    html += '<span class="btn-label">' + (s.nextType === 'in' ? '上班打卡' : s.nextType === 'out' ? '下班打卡' : '已完成') + '</span>';
+    html += '<span class="btn-hint">' + (s.nextType === 'done' ? '今日已打完' : s.isRest ? '休息日打卡将记为加班' : '点击打卡') + '</span>';
     html += '</button>';
     html += '<div class="punch-caption">' + (statusTagVis ? '<span class="tag tag-' + s.statusTone + '">' + s.statusLabel + '</span>' : '') +
       '<span class="caption-text">' + h(captionOf(s)) + '</span></div></div>';
@@ -517,7 +521,21 @@
 
     $body.innerHTML = html;
 
-    document.getElementById('punchBtn').onclick = doPunch;
+    var btn = document.getElementById('punchBtn');
+    btn.onclick = function () {
+      if (s.nextType === 'done') {
+        openSheet({
+          title: '今日已完成打卡',
+          body: '上班 ' + s.inText + ' · 下班 ' + s.outText + ' · 工时 ' + work.text +
+            '\n\n如需补一条记录（例如中途外出回来），可以点下面的按钮。',
+          confirmText: '补一条记录',
+          cancelText: '不用了',
+          onConfirm: function () { doPunch({ manual: true }); },
+        });
+        return;
+      }
+      doPunch({});
+    };
     var regeo = document.getElementById('regeo');
     if (regeo) regeo.onclick = requestGeo;
     var outside = document.getElementById('outside');
@@ -556,7 +574,9 @@
     var r = rulesOf();
     var dayKey = R.resolveShiftDay(now, r);
     var day = R.pairDay(db.records, r, dayKey, now);
-    var type = !day.inRec ? 'in' : 'out';
+    // 上下班都齐了时：如果是用户主动要补记录就按时间远近归类，否则 doPunch 已在上层拦截
+    var type = !day.inRec ? 'in' : !day.outRec ? 'out'
+      : Math.abs(now - day.inAt) < Math.abs(now - (day.outAt || 0)) ? 'in' : 'out';
     var info = R.shiftOfDay(r, dayKey);
     var graded = R.classifyPunch({ ms: now, type: type, dayKey: dayKey, ruleSet: r });
 

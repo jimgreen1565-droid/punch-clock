@@ -21,12 +21,13 @@ function nextPunchType(records, ruleSet, dayKey, nowMs) {
   const day = rules.pairDay(records, ruleSet, dayKey, nowMs);
   if (!day.inRec) return { type: 'in', hint: '上班打卡' };
   if (!day.outRec) return { type: 'out', hint: '下班打卡' };
-  // 上下班都齐了：允许补一条，按时间远近归类
-  const toIn = Math.abs(nowMs - (day.inAt || 0));
-  const toOut = Math.abs(nowMs - (day.outAt || 0));
+  // 上下班都齐了：不再猜"该打哪个"，明确告诉调用方「今天已经打完了」，
+  // 由页面决定是弹确认（补一条）还是直接阻止。之前在这里回落到 'in'，
+  // 会让首页按钮显示「上班打卡」并允许重复写入，与"今日已完成"文案自相矛盾。
   return {
-    type: toIn < toOut ? 'in' : 'out',
-    hint: '已打过上下班，本次作为补充记录',
+    type: 'done',
+    hint: '上下班卡都已打，本次作为补录',
+    done: true,
     extra: true,
   };
 }
@@ -73,15 +74,33 @@ async function doPunch(opts) {
 
   // 4. 类型
   const next = nextPunchType(records, rs, dayKey, clientNow);
+  // 已打完上下班且没明确要求补录 -> 不写记录，交回页面处理
+  if (next.done && !options.manual) {
+    return {
+      ok: false,
+      stage: 'done',
+      done: true,
+      dayKey,
+      message: '今天上班卡和下班卡都已经打过',
+      inText: dayInfo.shift || true ? rules.hhmmOf(records.filter((r) => r.dateKey === dayKey && r.type === 'in')[0].at) : '',
+    };
+  }
+  // 补录时按时间远近归到上班或下班
+  const type = next.done
+    ? Math.abs(clientNow - (rules.pairDay(records, rs, dayKey, clientNow).inAt || 0)) <
+      Math.abs(clientNow - (rules.pairDay(records, rs, dayKey, clientNow).outAt || 0))
+      ? 'in'
+      : 'out'
+    : next.type;
   // 5. 定级
-  const graded = rules.classifyPunch({ ms: clientNow, type: next.type, dayKey, ruleSet: rs });
+  const graded = rules.classifyPunch({ ms: clientNow, type: type, dayKey, ruleSet: rs });
   const outOfRange = rs.geo.enabled && !check.ok && (options.outOfRange || options.force);
 
   // 6. 落库
   let result = null;
   if (cloud.isReady()) {
     const res = await cloud.call('punch', 'punch', {
-      type: next.type,
+      type: type,
       clientAt: clientNow,
       dateKey: dayKey,
       lat: pos ? pos.lat : null,
@@ -98,7 +117,7 @@ async function doPunch(opts) {
   }
   if (!result) {
     result = store.addRecord({
-      type: next.type,
+      type: type,
       at: clientNow,
       clientAt: clientNow,
       dateKey: dayKey,
@@ -124,7 +143,7 @@ async function doPunch(opts) {
   const out = {
     ok: true,
     record: result,
-    type: next.type,
+    type: type,
     hint: next.hint,
     extra: !!next.extra,
     status: outOfRange ? 'outside' : graded.status,
@@ -141,8 +160,8 @@ async function doPunch(opts) {
     at: clientNow,
     hhmm: rules.hhmmOf(clientNow),
     hhmmss: rules.hhmmssOf(clientNow),
-    title: punchTitle(next.type, graded, outOfRange),
-    message: punchMessage(next.type, graded, check, geoSkipped, outOfRange),
+    title: punchTitle(type, graded, outOfRange),
+    message: punchMessage(type, graded, check, geoSkipped, outOfRange),
   };
   return out;
 }
