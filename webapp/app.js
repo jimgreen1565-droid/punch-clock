@@ -1211,7 +1211,7 @@
 
     html += '<button class="chain ' + (chain.ok ? 'ok' : 'bad') + '" id="verifyBtn">' +
       '<span class="chain-icon">' + (chain.ok ? '✓' : '!') + '</span>' +
-      '<span><span class="chain-title">' + (chain.ok ? '记录完整' : '记录被改动') + '</span>' +
+      '<span class="chain-text"><span class="chain-title">' + (chain.ok ? '记录完整' : '记录被改动') + '</span>' +
       '<span class="chain-sub">' + (chain.ok
         ? chain.count + ' 条记录完整 · ' + (db.records.length ? db.records[db.records.length - 1].hash.slice(0, 16) + '…' : '—')
         : '第 ' + ((chain.brokenAt || 0) + 1) + ' 条校验失败（' + chain.reason + '）') +
