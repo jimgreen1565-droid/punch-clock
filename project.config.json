@@ -1,0 +1,46 @@
+{
+  "projectname": "punch-clock",
+  "description": "上班打卡小程序：定位核验 + 班次规则 + 防篡改记录 + 计薪明细",
+  "appid": "touristappid",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "coverView": true,
+    "lazyloadPlaceholderEnable": false,
+    "ignoreUploadUnusedFiles": true,
+    "useCompilerPlugins": false,
+    "compileHotReLoad": true
+  },
+  "compileType": "miniprogram",
+  "libVersion": "3.5.5",
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "打卡主页",
+          "pathName": "pages/index/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "记录",
+          "pathName": "pages/records/records",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "统计",
+          "pathName": "pages/stats/stats",
+          "query": "",
+          "scene": null
+        }
+      ]
+    }
+  },
+  "miniprogramRoot": "miniprogram/",
+  "cloudfunctionRoot": "cloudfunctions/",
+  "srcMiniprogramRoot": "miniprogram/"
+}

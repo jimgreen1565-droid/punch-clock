@@ -1,0 +1,125 @@
+<view class="page">
+  <!-- 顶部：日期 + 规则胶囊 -->
+  <view class="hero">
+    <view class="hero-left">
+      <view class="hero-date">{{monthDay}}</view>
+      <view class="hero-week">{{weekText}}<text wx:if="{{isRest}}" class="tag tag-mute rest-tag">休息日</text></view>
+    </view>
+    <view class="rule-chip" bindtap="goRules">
+      <view class="chip-dot"></view>
+      <text class="chip-text">{{ruleTypeName}}</text>
+      <text class="chip-arrow">›</text>
+    </view>
+  </view>
+
+  <view class="rule-line" bindtap="goRules">
+    <text>{{ruleDesc}}</text>
+  </view>
+
+  <!-- 主打卡区 -->
+  <view class="punch-zone">
+    <view class="halo halo-{{nextType}}"></view>
+    <view class="punch-btn btn-{{nextType}}" bindtap="onPunch" hover-class="punch-hover" hover-stay-time="80">
+      <view class="btn-time">{{clock}}</view>
+      <view class="btn-label">{{nextLabel}}</view>
+      <view class="btn-hint">{{busy ? busyText : tapHint}}</view>
+    </view>
+    <view class="punch-caption">
+      <text wx:if="{{statusLabel}}" class="tag tag-{{statusTone}}">{{statusLabel}}</text>
+      <text class="caption-text">{{captionText}}</text>
+    </view>
+  </view>
+
+  <!-- 今日时间轴 -->
+  <view class="card tl-card">
+    <view class="tl">
+      <view class="tl-node">
+        <view class="tl-mark {{day.inAt ? 'done' : ''}}">
+          <text class="tl-dot"></text>
+        </view>
+        <view class="tl-info">
+          <view class="tl-what">上班</view>
+          <view class="tl-when {{day.inAt ? 'strong' : ''}}">{{inText}}</view>
+          <view class="tl-plan">应到 {{expectInText}}</view>
+        </view>
+      </view>
+
+      <view class="tl-line">
+        <view class="tl-line-fill" style="width: {{barPercent}}%"></view>
+      </view>
+
+      <view class="tl-node right">
+        <view class="tl-mark {{day.outAt ? 'done' : ''}}">
+          <text class="tl-dot"></text>
+        </view>
+        <view class="tl-info">
+          <view class="tl-what">下班</view>
+          <view class="tl-when {{day.outAt ? 'strong' : ''}}">{{outText}}</view>
+          <view class="tl-plan">应到 {{expectOutText}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="divider"></view>
+
+    <view class="metrics">
+      <view class="metric">
+        <view class="m-val">{{workText}}</view>
+        <view class="m-key">{{workKey}}</view>
+      </view>
+      <view class="m-sep"></view>
+      <view class="metric">
+        <view class="m-val {{remainTone}}">{{remainText}}</view>
+        <view class="m-key">{{remainKey}}</view>
+      </view>
+      <view class="m-sep"></view>
+      <view class="metric">
+        <view class="m-val">{{overText}}</view>
+        <view class="m-key">加班</view>
+      </view>
+    </view>
+
+    <view class="alerts" wx:if="{{alerts.length}}">
+      <view class="alert alert-{{item.tone}}" wx:for="{{alerts}}" wx:key="label">
+        <text class="alert-dot"></text>
+        <text>{{item.label}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 打卡范围 -->
+  <view class="card geo-card">
+    <view class="geo-head">
+      <view class="geo-title">
+        <text class="geo-name">{{geo.name}}</text>
+        <text class="geo-sub">范围 {{geo.radius}} 米</text>
+      </view>
+      <view class="geo-state {{geoOk ? 'ok' : 'bad'}}">
+        <text class="geo-dot"></text>
+        <text>{{geoStateText}}</text>
+      </view>
+    </view>
+    <view class="geo-body">
+      <view class="geo-row" wx:if="{{check && check.dist !== null}}">
+        <text class="geo-k">距打卡点</text>
+        <text class="geo-v">{{geoDistText}}</text>
+      </view>
+      <view class="geo-row" wx:if="{{geoAccText}}">
+        <text class="geo-k">定位精度</text>
+        <text class="geo-v">{{geoAccText}}</text>
+      </view>
+      <view class="geo-row" wx:if="{{lastPunchText}}">
+        <text class="geo-k">最近一次</text>
+        <text class="geo-v">{{lastPunchText}}</text>
+      </view>
+    </view>
+    <view class="geo-actions">
+      <button class="geo-btn" bindtap="onRetryGeo">重新定位</button>
+      <button class="geo-btn" bindtap="onOutsidePunch" wx:if="{{canOutside}}">外勤打卡</button>
+    </view>
+  </view>
+
+  <view class="footer-note">
+    打卡记录写入哈希链，任何改动都能在「记录」页校验出来
+  </view>
+</view>

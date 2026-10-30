@@ -1,0 +1,120 @@
+/* ============ 管理页 ============ */
+
+.page {
+  padding: 8rpx 28rpx 90rpx;
+}
+
+.card {
+  padding: 22rpx 26rpx;
+}
+
+.empty-mini {
+  text-align: center;
+  padding: 34rpx;
+}
+
+/* 补卡条目 */
+.patch {
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+
+.patch:first-child {
+  padding-top: 4rpx;
+}
+
+.patch:last-child {
+  border-bottom: none;
+  padding-bottom: 4rpx;
+}
+
+.patch-hd {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.patch-day {
+  font-size: 27rpx;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.patch-reason {
+  font-size: 23rpx;
+  color: var(--ink-2);
+  margin-top: 8rpx;
+  line-height: 1.6;
+}
+
+.patch-ops {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.op {
+  flex: 1;
+  height: 68rpx;
+  line-height: 68rpx;
+  font-size: 25rpx;
+  border-radius: 14rpx;
+  border: none;
+  font-weight: 600;
+  margin: 0;
+  padding: 0;
+}
+
+.op::after {
+  border: none;
+}
+
+.op-ok {
+  background: var(--ok-soft);
+  color: #05704e;
+}
+
+.op-bad {
+  background: var(--bad-soft);
+  color: #a51b1b;
+}
+
+/* 异常条目 */
+.ab {
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+
+.ab:first-child {
+  padding-top: 4rpx;
+}
+
+.ab:last-child {
+  border-bottom: none;
+  padding-bottom: 4rpx;
+}
+
+.ab-hd {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.ab-time {
+  font-size: 26rpx;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ab-meta {
+  font-size: 22rpx;
+  color: var(--ink-2);
+  margin-top: 8rpx;
+}
+
+.ab-hash {
+  margin-top: 6rpx;
+  font-size: 19rpx;
+  color: #b6c0d4;
+}

@@ -1,0 +1,22 @@
+{
+  "name": "punch-clock",
+  "version": "1.0.0",
+  "private": true,
+  "description": "上班打卡微信小程序：服务端授时 + 定位围栏 + 哈希链防篡改 + 计薪明细",
+  "scripts": {
+    "test": "node tests/all.js",
+    "test:core": "node tests/core.test.js",
+    "test:hash": "node tests/hash-consistency.test.js",
+    "test:pages": "node tests/pages.test.js",
+    "test:cloud": "node tests/cloud.test.js",
+    "lint": "node scripts/lint-miniprogram.js",
+    "check": "node scripts/lint-miniprogram.js && node tests/all.js",
+    "build:preview": "node scripts/build-preview.js",
+    "build:icons": "node scripts/make-icons.mjs",
+    "shoot": "node scripts/shoot.js",
+    "sync:shared": "node scripts/sync-shared.js"
+  },
+  "keywords": ["weixin", "miniprogram", "attendance", "punch-clock"],
+  "license": "MIT",
+  "devDependencies": {}
+}

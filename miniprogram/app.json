@@ -1,0 +1,55 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/records/records",
+    "pages/stats/stats",
+    "pages/me/me",
+    "pages/rules/rules",
+    "pages/admin/admin"
+  ],
+  "window": {
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTitleText": "打卡",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f3f5fb",
+    "enablePullDownRefresh": false
+  },
+  "tabBar": {
+    "color": "#97a3b8",
+    "selectedColor": "#4f6ef7",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "打卡",
+        "iconPath": "assets/tabbar/clock.png",
+        "selectedIconPath": "assets/tabbar/clock-active.png"
+      },
+      {
+        "pagePath": "pages/records/records",
+        "text": "记录",
+        "iconPath": "assets/tabbar/list.png",
+        "selectedIconPath": "assets/tabbar/list-active.png"
+      },
+      {
+        "pagePath": "pages/me/me",
+        "text": "我的",
+        "iconPath": "assets/tabbar/me.png",
+        "selectedIconPath": "assets/tabbar/me-active.png"
+      }
+    ]
+  },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于核验打卡是否在考勤范围内，位置仅用于打卡判定"
+    }
+  },
+  "requiredPrivateInfos": [
+    "getLocation"
+  ],
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents"
+}

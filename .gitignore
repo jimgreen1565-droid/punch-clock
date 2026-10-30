@@ -1,0 +1,11 @@
+# 忽略规则
+node_modules/
+.pnpm-store/
+*.log
+
+# 本地导出/备份
+punch-backup-*.json
+
+# 预览临时文件
+demo/_*.png
+docs/_shot.png

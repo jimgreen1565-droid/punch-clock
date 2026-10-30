@@ -1,0 +1,126 @@
+/* ============ 我的页 ============ */
+
+.page {
+  padding: 8rpx 28rpx 90rpx;
+}
+
+/* 身份卡 */
+.profile {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, #5b7cff, #7c5cff);
+  border-radius: 26rpx;
+  padding: 32rpx 30rpx;
+  color: #fff;
+  box-shadow: 0 16rpx 44rpx rgba(79, 110, 247, 0.32);
+  margin-bottom: 24rpx;
+}
+
+.avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 26rpx;
+  background: rgba(255, 255, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 42rpx;
+  font-weight: 700;
+  margin-right: 22rpx;
+  flex: 0 0 auto;
+}
+
+.pf-info {
+  flex: 1;
+}
+
+.pf-name {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.pf-meta {
+  font-size: 22rpx;
+  opacity: 0.85;
+  margin-top: 6rpx;
+}
+
+.pf-edit {
+  font-size: 22rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 菜单 */
+.menu {
+  background: #fff;
+  border-radius: 22rpx;
+  overflow: hidden;
+  margin-bottom: 22rpx;
+  box-shadow: 0 6rpx 22rpx rgba(15, 23, 42, 0.05);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26rpx 26rpx;
+  border-bottom: 1rpx solid var(--line);
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.mi-left {
+  flex: 1;
+}
+
+.mi-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.mi-title.bad {
+  color: var(--bad);
+}
+
+.mi-desc {
+  font-size: 21rpx;
+  color: var(--ink-3);
+  margin-top: 4rpx;
+}
+
+.mi-right {
+  display: flex;
+  align-items: center;
+}
+
+.mi-badge {
+  font-size: 21rpx;
+  color: var(--brand);
+  background: var(--brand-soft);
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  font-weight: 600;
+}
+
+.mi-arrow {
+  font-size: 26rpx;
+  color: var(--ink-3);
+  margin-left: 12rpx;
+}
+
+/* 关于 */
+.about {
+  text-align: center;
+  padding: 20rpx 20rpx 0;
+}
+
+.about-line {
+  font-size: 20rpx;
+  color: var(--ink-3);
+  line-height: 1.9;
+}

@@ -1,0 +1,439 @@
+/* ============ 首页 ============ */
+
+.page {
+  padding: 0 28rpx 90rpx;
+}
+
+/* 顶部 */
+.hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 28rpx 4rpx 0;
+}
+
+.hero-date {
+  font-size: 44rpx;
+  font-weight: 700;
+  letter-spacing: 1rpx;
+  color: var(--ink);
+}
+
+.hero-week {
+  font-size: 24rpx;
+  color: var(--ink-3);
+  margin-top: 6rpx;
+  display: flex;
+  align-items: center;
+}
+
+.rest-tag {
+  margin-left: 12rpx;
+}
+
+.rule-chip {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 999rpx;
+  padding: 12rpx 20rpx 12rpx 16rpx;
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.07);
+  margin-top: 6rpx;
+}
+
+.chip-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  margin-right: 10rpx;
+}
+
+.chip-text {
+  font-size: 23rpx;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.chip-arrow {
+  font-size: 22rpx;
+  color: var(--ink-3);
+  margin-left: 8rpx;
+}
+
+.rule-line {
+  font-size: 23rpx;
+  color: var(--ink-2);
+  padding: 14rpx 6rpx 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 打卡按钮 */
+.punch-zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 46rpx 0 30rpx;
+}
+
+.halo {
+  position: absolute;
+  top: 30rpx;
+  width: 520rpx;
+  height: 520rpx;
+  border-radius: 50%;
+  filter: blur(40rpx);
+  opacity: 0.5;
+  z-index: 0;
+}
+
+.halo-in {
+  background: radial-gradient(circle, rgba(79, 110, 247, 0.55), rgba(79, 110, 247, 0) 68%);
+}
+
+.halo-out {
+  background: radial-gradient(circle, rgba(124, 92, 255, 0.5), rgba(124, 92, 255, 0) 68%);
+}
+
+.punch-btn {
+  position: relative;
+  z-index: 1;
+  width: 420rpx;
+  height: 420rpx;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: transform 0.1s ease-out;
+}
+
+.btn-in {
+  background: linear-gradient(150deg, #5b7cff, #4f6ef7 55%, #4459e6);
+  box-shadow: 0 22rpx 60rpx rgba(79, 110, 247, 0.42), inset 0 -6rpx 24rpx rgba(0, 0, 0, 0.1), inset 0 6rpx 20rpx rgba(255, 255, 255, 0.24);
+}
+
+.btn-out {
+  background: linear-gradient(150deg, #8f6dff, #7c5cff 55%, #6a4ae0);
+  box-shadow: 0 22rpx 60rpx rgba(124, 92, 255, 0.42), inset 0 -6rpx 24rpx rgba(0, 0, 0, 0.1), inset 0 6rpx 20rpx rgba(255, 255, 255, 0.24);
+}
+
+.punch-hover {
+  transform: scale(0.955);
+}
+
+.btn-time {
+  font-size: 76rpx;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 2rpx;
+  text-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.16);
+  line-height: 1.1;
+}
+
+.btn-label {
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-top: 10rpx;
+  letter-spacing: 2rpx;
+}
+
+.btn-hint {
+  font-size: 22rpx;
+  opacity: 0.78;
+  margin-top: 10rpx;
+}
+
+.punch-caption {
+  display: flex;
+  align-items: center;
+  margin-top: 30rpx;
+  z-index: 1;
+}
+
+.caption-text {
+  font-size: 23rpx;
+  color: var(--ink-2);
+  margin-left: 10rpx;
+}
+
+/* 时间轴 */
+.tl-card {
+  padding: 34rpx 30rpx 26rpx;
+}
+
+.tl {
+  display: flex;
+  align-items: flex-start;
+}
+
+.tl-node {
+  display: flex;
+  align-items: flex-start;
+  flex: 0 0 auto;
+}
+
+.tl-node.right {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.tl-mark {
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  background: #f1f4fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4rpx;
+  border: 3rpx solid #e3eaf6;
+  box-sizing: border-box;
+}
+
+.tl-mark.done {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+}
+
+.tl-dot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+
+.tl-mark.done .tl-dot {
+  background: var(--brand);
+}
+
+.tl-info {
+  margin: 0 18rpx;
+}
+
+.tl-what {
+  font-size: 22rpx;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+.tl-when {
+  font-size: 42rpx;
+  font-weight: 700;
+  color: #b6c0d4;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1rpx;
+  line-height: 1.25;
+}
+
+.tl-when.strong {
+  color: var(--ink);
+}
+
+.tl-plan {
+  font-size: 20rpx;
+  color: var(--ink-3);
+}
+
+.tl-line {
+  flex: 1;
+  height: 6rpx;
+  background: #eef2fa;
+  border-radius: 6rpx;
+  margin: 16rpx 0 0;
+  overflow: hidden;
+}
+
+.tl-line-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand), var(--brand-2));
+  border-radius: 6rpx;
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 指标 */
+.metrics {
+  display: flex;
+  align-items: center;
+}
+
+.metric {
+  flex: 1;
+  text-align: center;
+}
+
+.m-val {
+  font-size: 36rpx;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  letter-spacing: 0.5rpx;
+}
+
+.m-val.tone-ok {
+  color: var(--ok);
+}
+
+.m-val.tone-warn {
+  color: var(--warn);
+}
+
+.m-key {
+  font-size: 21rpx;
+  color: var(--ink-3);
+  margin-top: 4rpx;
+}
+
+.m-sep {
+  width: 1rpx;
+  height: 44rpx;
+  background: var(--line);
+}
+
+/* 异常提示 */
+.alerts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 22rpx;
+}
+
+.alert {
+  display: flex;
+  align-items: center;
+  padding: 10rpx 18rpx;
+  border-radius: 14rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+.alert-dot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  margin-right: 10rpx;
+}
+
+.alert-warn {
+  background: var(--warn-soft);
+  color: #92600a;
+}
+
+.alert-warn .alert-dot {
+  background: var(--warn);
+}
+
+.alert-bad {
+  background: var(--bad-soft);
+  color: #a51b1b;
+}
+
+.alert-bad .alert-dot {
+  background: var(--bad);
+}
+
+.alert-accent {
+  background: var(--accent-soft);
+  color: #0a6b7d;
+}
+
+.alert-accent .alert-dot {
+  background: var(--accent);
+}
+
+/* 打卡范围 */
+.geo-card {
+  padding: 28rpx 30rpx 24rpx;
+}
+
+.geo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.geo-name {
+  font-size: 29rpx;
+  font-weight: 600;
+}
+
+.geo-sub {
+  font-size: 22rpx;
+  color: var(--ink-3);
+  margin-left: 12rpx;
+}
+
+.geo-state {
+  display: flex;
+  align-items: center;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.geo-state.ok {
+  color: var(--ok);
+}
+
+.geo-state.bad {
+  color: var(--bad);
+}
+
+.geo-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  margin-right: 10rpx;
+  background: currentColor;
+}
+
+.geo-body {
+  margin-top: 8rpx;
+}
+
+.geo-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+
+.geo-row:last-child {
+  border-bottom: none;
+}
+
+.geo-k {
+  font-size: 24rpx;
+  color: var(--ink-3);
+}
+
+.geo-v {
+  font-size: 25rpx;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.geo-actions {
+  display: flex;
+  gap: 18rpx;
+  margin-top: 18rpx;
+}
+
+.geo-btn {
+  flex: 1;
+  height: 76rpx;
+  line-height: 76rpx;
+  font-size: 26rpx;
+  border-radius: 16rpx;
+  background: var(--brand-soft);
+  color: var(--brand);
+  border: none;
+  font-weight: 500;
+  margin: 0;
+  padding: 0;
+}
+
+.geo-btn::after {
+  border: none;
+}

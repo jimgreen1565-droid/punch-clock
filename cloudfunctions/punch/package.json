@@ -1,0 +1,9 @@
+{
+  "name": "punch",
+  "version": "1.0.0",
+  "description": "打卡写入/查询/校验（服务端授时+复算围栏+哈希链）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

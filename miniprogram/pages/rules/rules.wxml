@@ -1,0 +1,171 @@
+<view class="page">
+  <!-- 当前规则摘要卡 -->
+  <view class="card current">
+    <view class="cur-top">
+      <view class="cur-badge">{{ruleTypeName}}</view>
+      <view class="cur-name">{{ruleSet.name}}</view>
+    </view>
+    <view class="cur-desc">{{ruleDesc}}</view>
+  </view>
+
+  <!-- 四选一 -->
+  <view class="section-label">选择考勤规则</view>
+  <view class="options">
+    <view
+      class="option {{item.id === ruleSet.type ? 'active' : ''}}"
+      wx:for="{{types}}"
+      wx:key="id"
+      bindtap="onPickType"
+      data-type="{{item.id}}"
+    >
+      <view class="opt-radio">
+        <view class="opt-radio-fill" wx:if="{{item.id === ruleSet.type}}"></view>
+      </view>
+      <view class="opt-body">
+        <view class="opt-head">
+          <text class="opt-name">{{item.name}}</text>
+          <text class="opt-tag">{{item.tag}}</text>
+        </view>
+        <view class="opt-desc">{{item.desc}}</view>
+        <view class="opt-detail">{{item.detail}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 当前规则的可配置项 -->
+  <view class="section-label">规则参数</view>
+
+  <!-- 固定班制 -->
+  <view class="card" wx:if="{{ruleSet.type === 'fixed'}}">
+    <view class="row" bindtap="editStart">
+      <text class="k">上班时间</text>
+      <text class="v">{{ruleSet.start}} ›</text>
+    </view>
+    <view class="row" bindtap="editEnd">
+      <text class="k">下班时间</text>
+      <text class="v">{{ruleSet.end}} ›</text>
+    </view>
+    <view class="row" bindtap="editWeekdays">
+      <text class="k">工作日</text>
+      <text class="v">{{weekdaysText}} ›</text>
+    </view>
+    <view class="row" bindtap="editBreak">
+      <text class="k">午休时段</text>
+      <text class="v">{{breakText}} ›</text>
+    </view>
+    <view class="row" bindtap="editGrace">
+      <text class="k">迟到宽限</text>
+      <text class="v">{{ruleSet.lateGrace}} 分钟 ›</text>
+    </view>
+  </view>
+
+  <!-- 弹性 -->
+  <view class="card" wx:if="{{ruleSet.type === 'flexible'}}">
+    <view class="row" bindtap="editLatestStart">
+      <text class="k">最晚上班</text>
+      <text class="v">{{ruleSet.latestStart}} ›</text>
+    </view>
+    <view class="row" bindtap="editEarliestEnd">
+      <text class="k">最早下班</text>
+      <text class="v">{{ruleSet.earliestEnd}} ›</text>
+    </view>
+    <view class="row" bindtap="editRequired">
+      <text class="k">每日应满工时</text>
+      <text class="v">{{requiredText}} ›</text>
+    </view>
+    <view class="row" bindtap="editWeekdays">
+      <text class="k">工作日</text>
+      <text class="v">{{weekdaysText}} ›</text>
+    </view>
+    <view class="row" bindtap="editBreak">
+      <text class="k">午休（不计工时）</text>
+      <text class="v">{{breakText}} ›</text>
+    </view>
+  </view>
+
+  <!-- 排班 -->
+  <view class="card" wx:if="{{ruleSet.type === 'shift'}}">
+    <view class="row" bindtap="toggleRotation">
+      <text class="k">周期轮换</text>
+      <text class="v">{{ruleSet.rotation.enabled ? '已开启' : '未开启'}} ›</text>
+    </view>
+    <view class="row" wx:if="{{ruleSet.rotation.enabled}}" bindtap="editCycle">
+      <text class="k">轮换周期</text>
+      <text class="v">{{ruleSet.rotation.cycleDays}} 天 ›</text>
+    </view>
+    <view class="row" wx:if="{{ruleSet.rotation.enabled}}" bindtap="editSlots">
+      <text class="k">班次顺序</text>
+      <text class="v">{{slotText}} ›</text>
+    </view>
+    <view wx:if="{{!ruleSet.rotation.enabled}}">
+      <view class="row" bindtap="editStart">
+        <text class="k">上班时间</text>
+        <text class="v">{{ruleSet.start}} ›</text>
+      </view>
+      <view class="row" bindtap="editEnd">
+        <text class="k">下班时间</text>
+        <text class="v">{{ruleSet.end}} ›</text>
+      </view>
+    </view>
+    <view class="row" bindtap="editWeekdays">
+      <text class="k">工作日</text>
+      <text class="v">{{weekdaysText}} ›</text>
+    </view>
+  </view>
+
+  <!-- 自由工时 -->
+  <view class="card" wx:if="{{ruleSet.type === 'free'}}">
+    <view class="row" bindtap="editTarget">
+      <text class="k">每日目标工时</text>
+      <text class="v">{{targetText}} ›</text>
+    </view>
+    <view class="row">
+      <text class="k">判定方式</text>
+      <text class="v dim">不判迟到早退</text>
+    </view>
+  </view>
+
+  <!-- 打卡方式（所有类型共用） -->
+  <view class="section-label">打卡方式</view>
+  <view class="card">
+    <view class="row">
+      <text class="k">位置校验</text>
+      <switch checked="{{ruleSet.geo.enabled}}" bindchange="onToggleGeo" color="#4f6ef7" />
+    </view>
+    <view wx:if="{{ruleSet.geo.enabled}}">
+      <view class="row" bindtap="setHere">
+        <text class="k">打卡点坐标</text>
+        <text class="v mono">{{ruleSet.geo.lat}}, {{ruleSet.geo.lng}}</text>
+      </view>
+      <view class="row" bindtap="editRadius">
+        <text class="k">范围半径</text>
+        <text class="v">{{ruleSet.geo.radius}} 米 ›</text>
+      </view>
+      <view class="row">
+        <text class="k">范围外打卡</text>
+        <switch checked="{{!ruleSet.geo.strict}}" bindchange="onToggleStrict" color="#4f6ef7" />
+      </view>
+      <view class="muted hint">
+        {{ruleSet.geo.strict ? '严格模式：范围外无法打卡' : '宽松模式：范围外可打卡，需填写外勤原因并标记待审核'}}
+      </view>
+    </view>
+  </view>
+
+  <!-- 规则模板 -->
+  <view class="section-label">规则模板</view>
+  <view class="card">
+    <view wx:if="{{!presets.length}}" class="muted" style="padding: 6rpx 0 16rpx">还没有保存的模板。保存后可一键切换。</view>
+    <view class="preset" wx:for="{{presets}}" wx:key="id">
+      <view class="preset-main" bindtap="onApplyPreset" data-id="{{item.id}}">
+        <view class="preset-name">{{item.name}}</view>
+        <view class="preset-desc">{{item.desc}}</view>
+      </view>
+      <text class="preset-del" catchtap="onRemovePreset" data-id="{{item.id}}">删除</text>
+    </view>
+    <button class="btn-ghost" bindtap="onSavePreset" style="margin-top: 16rpx">保存当前规则为模板</button>
+  </view>
+
+  <view class="footer-note">
+    钉钉里考勤组类型一旦创建就不可修改；这里允许你随时切换，切换后历史记录不会被改写
+  </view>
+</view>

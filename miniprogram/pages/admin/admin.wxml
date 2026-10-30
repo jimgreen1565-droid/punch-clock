@@ -1,0 +1,54 @@
+<view class="page">
+  <!-- 待审批补卡 -->
+  <view class="section-label">待审批补卡 · {{pending.length}}</view>
+  <view class="card" wx:if="{{pending.length}}">
+    <view class="patch" wx:for="{{pending}}" wx:key="id">
+      <view class="patch-hd">
+        <view class="patch-day">{{item.dateKey}}</view>
+        <text class="tag tag-brand">{{item.type === 'out' ? '下班' : '上班'}}</text>
+      </view>
+      <view class="patch-reason">{{item.reason}}</view>
+      <view class="patch-ops">
+        <button class="op op-ok" bindtap="approve" data-id="{{item.id}}">通过</button>
+        <button class="op op-bad" bindtap="reject" data-id="{{item.id}}">驳回</button>
+      </view>
+    </view>
+  </view>
+  <view class="card empty-mini" wx:else>
+    <text class="muted">没有待处理的补卡申请</text>
+  </view>
+
+  <!-- 异常打卡 -->
+  <view class="section-label">异常打卡 · {{abnormal.length}}</view>
+  <view class="card" wx:if="{{abnormal.length}}">
+    <view class="ab" wx:for="{{abnormal}}" wx:key="id">
+      <view class="ab-hd">
+        <text class="ab-time">{{item.dayKey}} {{item.hhmm}}</text>
+        <text class="tag tag-brand">{{item.type === 'out' ? '下班' : '上班'}}</text>
+        <text class="tag tag-{{item.tone}}" wx:for="{{item.flags}}" wx:for-item="f" wx:key="*this">{{f.label}}</text>
+      </view>
+      <view class="ab-meta">{{item.metaText}}</view>
+      <view class="mono ab-hash">{{item.hashShort}}</view>
+    </view>
+  </view>
+  <view class="card empty-mini" wx:else>
+    <text class="muted">本月没有异常记录</text>
+  </view>
+
+  <!-- 月度汇总 -->
+  <view class="section-label">本月汇总</view>
+  <view class="card">
+    <view class="row" wx:for="{{summary}}" wx:key="key">
+      <text class="k">{{item.name}}</text>
+      <text class="v">{{item.days}} 天 · 异常 {{item.abnormal}} · 加班 {{item.otHours}}h</text>
+    </view>
+    <view class="row">
+      <text class="k">本机总记录</text>
+      <text class="v">{{recordCount}} 条</text>
+    </view>
+  </view>
+
+  <view class="footer-note">
+    审批通过会生成一条 source=patch 的新记录接入哈希链，不改历史数据
+  </view>
+</view>

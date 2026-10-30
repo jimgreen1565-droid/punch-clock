@@ -1,0 +1,102 @@
+<view class="page">
+  <!-- 顶部月度切换 -->
+  <view class="monthbar">
+    <view class="mb-side" bindtap="prevMonth">‹</view>
+    <view class="mb-center" bindtap="goStats">
+      <text class="mb-month">{{month}}</text>
+      <text class="mb-arrow">统计 ›</text>
+    </view>
+    <view class="mb-side" bindtap="nextMonth">›</view>
+  </view>
+
+  <!-- 月度概览 -->
+  <view class="card summary">
+    <view class="sum-row">
+      <view class="sum-item">
+        <view class="sum-val">{{summary.present}}</view>
+        <view class="sum-key">出勤</view>
+      </view>
+      <view class="sum-item">
+        <view class="sum-val warn">{{summary.abnormal}}</view>
+        <view class="sum-key">异常</view>
+      </view>
+      <view class="sum-item">
+        <view class="sum-val">{{summary.workHours}}</view>
+        <view class="sum-key">工时</view>
+      </view>
+      <view class="sum-item">
+        <view class="sum-val accent">{{summary.otHours}}</view>
+        <view class="sum-key">加班</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 哈希链状态 -->
+  <view class="chain {{chain.ok ? 'ok' : 'bad'}}" bindtap="onVerify">
+    <view class="chain-icon">{{chain.ok ? '✓' : '!'}}</view>
+    <view class="chain-text">
+      <view class="chain-title">{{chain.ok ? '记录完整' : '记录被改动'}}</view>
+      <view class="chain-sub">{{chainText}}</view>
+    </view>
+    <text class="chain-more">校验 ›</text>
+  </view>
+
+  <!-- 周历条 -->
+  <view class="weekbar">
+    <view class="wb-day {{item.isToday ? 'today' : ''}}" wx:for="{{weekStrip}}" wx:key="dayKey">
+      <text class="wb-w">{{item.w}}</text>
+      <text class="wb-d">{{item.d}}</text>
+      <text class="wb-dot wb-{{item.tone}}" wx:if="{{item.tone}}"></text>
+    </view>
+  </view>
+
+  <!-- 日列表 -->
+  <view wx:if="{{!days.length}}" class="empty">
+    <text class="empty-icon">🗓</text>
+    本月还没有打卡记录
+  </view>
+
+  <view class="day" wx:for="{{days}}" wx:key="dateKey" bindtap="toggleDay" data-key="{{item.dateKey}}">
+    <view class="day-main">
+      <view class="day-left">
+        <view class="day-date">
+          <text class="dd-num">{{item.dayNum}}</text>
+          <text class="dd-week">{{item.weekText}}</text>
+        </view>
+        <view class="day-tags">
+          <text class="tag tag-{{item.tone}}">{{item.statusLabel}}</text>
+          <text class="tag tag-brand" wx:if="{{item.shiftName}}">{{item.shiftName}}</text>
+          <text class="tag tag-bad" wx:if="{{item.outside}}">外勤</text>
+        </view>
+      </view>
+      <view class="day-right">
+        <view class="day-times">{{item.inText}}<text class="dash">–</text>{{item.outText}}</view>
+        <view class="day-work">{{item.workText}}</view>
+      </view>
+    </view>
+
+    <view class="day-detail" wx:if="{{expanded[item.dateKey]}}">
+      <view class="dt-row" wx:for="{{item.records}}" wx:for-item="r" wx:key="id">
+        <view class="dt-type {{r.type}}">{{r.type === 'in' ? '上班' : '下班'}}</view>
+        <view class="dt-mid">
+          <view class="dt-time">{{r.hhmmss}}</view>
+          <view class="dt-meta">{{r.metaText}}</view>
+        </view>
+        <view class="dt-hash">{{r.hashShort}}</view>
+      </view>
+
+      <view class="dt-empty" wx:if="{{!item.records.length}}">
+        <text class="muted">当天没有打卡记录</text>
+      </view>
+
+      <view class="dt-actions">
+        <text class="dt-link" catchtap="onApplyPatch" data-key="{{item.dateKey}}">申请补卡</text>
+        <text class="dt-link" catchtap="onAddRecord" data-key="{{item.dateKey}}">手动补录</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="footer-note">
+    每条记录都带哈希与前一条的链尾，改动任一条都会被校验发现
+  </view>
+</view>

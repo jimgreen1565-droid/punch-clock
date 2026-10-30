@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>考勤打卡 · 预览</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="preview.css">
+</head>
+<body>
+<div id="stage">
+  <div class="phone">
+    <div class="statusbar">
+      <span class="sb-time" id="sbTime">9:41</span>
+      <span class="sb-icons">▮▮▮ ⏻</span>
+    </div>
+    <div class="nav">
+      <span class="nav-back" id="navBack"></span>
+      <span class="nav-title" id="navTitle">考勤打卡</span>
+      <span class="nav-right">···</span>
+    </div>
+    <div class="body" id="body"></div>
+    <div class="tabbar" id="tabbar">
+      <div class="tab active" data-page="index"><i>◷</i><b>打卡</b></div>
+      <div class="tab" data-page="records"><i>☰</i><b>记录</b></div>
+      <div class="tab" data-page="me"><i>◯</i><b>我的</b></div>
+    </div>
+  </div>
+  <div class="hint">
+    同一套 <code>core/</code> 逻辑（rules / ledger / sha256）的网页预览，用于确认交互与视觉；<br>
+    真机/开发者工具跑 <code>miniprogram/</code>，代码完全一致。
+  </div>
+</div>
+<script src="core-bundle.js"></script>
+<script src="preview.js"></script>
+</body>
+</html>

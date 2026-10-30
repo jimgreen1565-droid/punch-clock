@@ -1,0 +1,116 @@
+<view class="page">
+  <!-- 月份 -->
+  <view class="monthbar">
+    <view class="mb-side" bindtap="prevMonth">‹</view>
+    <view class="mb-center">
+      <text class="mb-month">{{month}}</text>
+      <text class="mb-sub">{{ruleTypeName}} · {{ruleDesc}}</text>
+    </view>
+    <view class="mb-side" bindtap="nextMonth">›</view>
+  </view>
+
+  <!-- 大数卡 -->
+  <view class="hero-card">
+    <view class="hero-main">
+      <view class="hero-num">{{rate}}<text class="hero-unit">%</text></view>
+      <view class="hero-label">出勤率 · 按有上班卡天数</view>
+    </view>
+    <view class="hero-side">
+      <view class="hs-row">
+        <text class="hs-k">应出勤</text>
+        <text class="hs-v">{{planned}} 天</text>
+      </view>
+      <view class="hs-row">
+        <text class="hs-k">实际打卡</text>
+        <text class="hs-v">{{present}} 天</text>
+      </view>
+      <view class="hs-row">
+        <text class="hs-k">有异常</text>
+        <text class="hs-v warn">{{abnormal}} 天</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 日历热力 -->
+  <view class="card">
+    <view class="card-title">
+      <text>日历</text>
+      <text class="sub">{{month}}</text>
+    </view>
+    <view class="grid-hd">
+      <text wx:for="{{weekHeader}}" wx:key="*this" class="gh">{{item}}</text>
+    </view>
+    <view class="grid">
+      <view wx:for="{{calendar}}" wx:key="idx" class="cell {{item.cls}}">
+        <text class="cell-d">{{item.d}}</text>
+        <text class="cell-dot" wx:if="{{item.dot}}"></text>
+      </view>
+    </view>
+    <view class="legend">
+      <text class="lg"><text class="dot dot-ok"></text>正常</text>
+      <text class="lg"><text class="dot dot-warn"></text>迟到/早退</text>
+      <text class="lg"><text class="dot dot-bad"></text>缺卡/旷工</text>
+      <text class="lg"><text class="dot dot-mute"></text>休息</text>
+    </view>
+  </view>
+
+  <!-- 出勤构成 -->
+  <view class="card">
+    <view class="card-title">
+      <text>出勤构成</text>
+      <text class="sub">{{totalDays}} 天有记录</text>
+    </view>
+    <view class="dist" wx:for="{{distribution}}" wx:key="key">
+      <view class="dist-left">
+        <text class="dist-label">{{item.label}}</text>
+        <text class="dist-count">{{item.count}}</text>
+      </view>
+      <view class="dist-track">
+        <view class="dist-fill dist-{{item.tone}}" style="width: {{item.percent}}%"></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 工时统计 -->
+  <view class="card">
+    <view class="card-title">
+      <text>工时</text>
+      <text class="sub">本月合计</text>
+    </view>
+    <view class="kpi">
+      <view class="kpi-item">
+        <view class="kpi-val">{{workHours}}</view>
+        <view class="kpi-key">累计工时</view>
+      </view>
+      <view class="kpi-item">
+        <view class="kpi-val">{{avgHours}}</view>
+        <view class="kpi-key">日均工时</view>
+      </view>
+      <view class="kpi-item">
+        <view class="kpi-val accent">{{otHours}}</view>
+        <view class="kpi-key">加班合计</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 近 7 日 -->
+  <view class="card">
+    <view class="card-title">
+      <text>近 7 日</text>
+      <text class="sub">每日工时</text>
+    </view>
+    <view class="bars">
+      <view class="bar-wrap" wx:for="{{trend}}" wx:key="dayKey">
+        <view class="bar-track">
+          <view class="bar-fill bar-{{item.tone}}" style="height: {{item.h}}%"></view>
+        </view>
+        <text class="bar-v">{{item.v}}</text>
+        <text class="bar-l">{{item.label}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="footer-note">
+    仅统计考勤（出勤 / 工时 / 异常），不涉及薪资与扣款计算
+  </view>
+</view>
