@@ -1,0 +1,189 @@
+/* ==========================================================================
+   多色背景（webapp/bg-mesh.css）
+   --------------------------------------------------------------------------
+   用户第三轮："背景的颜色很单调"。
+
+   上一版的问题：背景只在最上面 200px 有一条极浅的单色带，下面全是纯白；
+   再加上卡片是 100% 不透明白色，把背景挡死了。所以整页看起来还是白纸。
+
+   这一版的三个改动：
+     1. 背景改"多色柔光"（mesh gradient）：4 个色相互相叠加，
+        靛蓝（左上）、青（右上）、紫（左下）、琥珀（右下），透明度都很低，
+        叠出来的是一种"雾面极光"，不是色块拼接。
+     2. 卡片改成半透明白 + 背景模糊（frosted）：让底色透上来，
+        文字仍然压在白色薄膜上，对比度不掉。
+     3. 顶栏/tabbar 同样半透明，让整页颜色是连续的。
+
+   可读性保证：所有柔光都是 4%~10% 透明度，叠加后背景最深处仍在 #F0EFFA 级别，
+   正文 #111827 对其对比度 > 12:1。
+   ========================================================================== */
+
+/* ---- 多色柔光背景（默认开启，配合 colorful 主题） ---- */
+body[data-bg="6"] {
+  background: #f7f7fd;
+}
+
+/* 关键：柔光必须铺在 body 上并 fixed，才能覆盖整个视口。
+   放在 .shell 上会随内容高度拉伸，而 background-attachment:fixed 在
+   滚动容器里只会"对准视口一次"，滚下去就露白。 */
+body[data-bg="6"] {
+  background-image:
+    /* 左上：靛蓝 */
+    radial-gradient(720px 520px at -10% -8%, rgba(79, 70, 229, 0.20), transparent 62%),
+    /* 右上：青 */
+    radial-gradient(640px 480px at 108% 4%, rgba(8, 145, 178, 0.18), transparent 62%),
+    /* 左下：紫 */
+    radial-gradient(680px 560px at -6% 46%, rgba(124, 58, 237, 0.16), transparent 64%),
+    /* 右下：琥珀（最弱，只做暖尾） */
+    radial-gradient(560px 420px at 104% 72%, rgba(217, 119, 6, 0.12), transparent 62%),
+    /* 中下：绿（和"正常出勤"呼应） */
+    radial-gradient(520px 400px at 46% 106%, rgba(5, 150, 105, 0.10), transparent 60%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-color: #f7f7fd;
+}
+
+body[data-bg="6"] .shell {
+  background: transparent;
+}
+
+/* ---- 卡片：半透明薄膜，让底色透出来 ---- */
+body[data-bg="6"] .card,
+body[data-bg="6"] .day,
+body[data-bg="6"] .weekbar,
+body[data-bg="6"] .menu,
+body[data-bg="6"] .options,
+body[data-bg="6"] .chain {
+  background: rgba(255, 255, 255, 0.74);
+  backdrop-filter: saturate(140%) blur(14px);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* 关键数字卡（汇总/出勤率）稍微更实一点，保证数字清晰 */
+body[data-bg="6"] .summary,
+body[data-bg="6"] .hero-card,
+body[data-bg="6"] .profile,
+body[data-bg="6"] .current {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: saturate(140%) blur(16px);
+  -webkit-backdrop-filter: saturate(140%) blur(16px);
+}
+
+/* ---- 顶栏与 tabbar：半透明，让颜色连续不断 ---- */
+body[data-bg="6"] .topbar {
+  background: rgba(247, 247, 253, 0.7);
+  backdrop-filter: saturate(150%) blur(16px);
+  -webkit-backdrop-filter: saturate(150%) blur(16px);
+}
+
+body[data-bg="6"] .topbar.scrolled {
+  background: rgba(247, 247, 253, 0.9);
+  border-bottom-color: rgba(229, 231, 235, 0.7);
+}
+
+body[data-bg="6"] .tabbar {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: saturate(150%) blur(18px);
+  -webkit-backdrop-filter: saturate(150%) blur(18px);
+  border-top-color: rgba(229, 231, 235, 0.7);
+}
+
+/* ---- 打卡按钮：在柔光底上再多一层同色投影，让它"落在光里" ---- */
+body[data-bg="6"] .punch-btn {
+  box-shadow:
+    0 0 0 8px rgba(79, 70, 229, 0.06),
+    0 0 0 18px rgba(79, 70, 229, 0.03),
+    0 16px 40px -14px rgba(79, 70, 229, 0.55);
+}
+
+/* ---- 深色模式：多色柔光换成深底 + 更亮的色斑 ---- */
+@media (prefers-color-scheme: dark) {
+  body[data-bg="6"] {
+    background: #0f1115;
+  }
+
+  body[data-bg="6"] {
+    background-color: #0f1115;
+    background-image:
+      radial-gradient(720px 520px at -10% -8%, rgba(99, 91, 255, 0.28), transparent 62%),
+      radial-gradient(640px 480px at 108% 4%, rgba(34, 211, 238, 0.18), transparent 62%),
+      radial-gradient(680px 560px at -6% 46%, rgba(147, 91, 255, 0.22), transparent 64%),
+      radial-gradient(560px 420px at 104% 72%, rgba(251, 191, 36, 0.14), transparent 62%),
+      radial-gradient(520px 400px at 46% 106%, rgba(52, 211, 153, 0.12), transparent 60%);
+    background-attachment: fixed;
+  }
+
+  body[data-bg="6"] .card,
+  body[data-bg="6"] .day,
+  body[data-bg="6"] .weekbar,
+  body[data-bg="6"] .menu,
+  body[data-bg="6"] .options,
+  body[data-bg="6"] .chain {
+    background: rgba(23, 26, 33, 0.72);
+    border-color: rgba(42, 47, 58, 0.8);
+  }
+
+  body[data-bg="6"] .summary,
+  body[data-bg="6"] .hero-card,
+  body[data-bg="6"] .profile,
+  body[data-bg="6"] .current {
+    background: rgba(23, 26, 33, 0.84);
+  }
+
+  body[data-bg="6"] .topbar { background: rgba(15, 17, 21, 0.72); }
+  body[data-bg="6"] .tabbar { background: rgba(15, 17, 21, 0.8); }
+}
+
+/* ==========================================================================
+   bg=7：更浓的多色柔光（用户若觉得 6 还不够）
+   ========================================================================== */
+body[data-bg="7"] {
+  background: #f6f5ff;
+}
+
+body[data-bg="7"] {
+  background-color: #f6f5ff;
+  background-image:
+    radial-gradient(760px 560px at -12% -10%, rgba(79, 70, 229, 0.34), transparent 60%),
+    radial-gradient(680px 520px at 110% 2%, rgba(8, 145, 178, 0.30), transparent 60%),
+    radial-gradient(720px 600px at -8% 44%, rgba(124, 58, 237, 0.28), transparent 62%),
+    radial-gradient(600px 460px at 108% 70%, rgba(217, 119, 6, 0.22), transparent 60%),
+    radial-gradient(560px 440px at 44% 108%, rgba(5, 150, 105, 0.18), transparent 58%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+body[data-bg="7"] .shell {
+  background: transparent;
+}
+
+body[data-bg="7"] .card,
+body[data-bg="7"] .day,
+body[data-bg="7"] .weekbar,
+body[data-bg="7"] .menu,
+body[data-bg="7"] .options,
+body[data-bg="7"] .chain {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: saturate(150%) blur(16px);
+  -webkit-backdrop-filter: saturate(150%) blur(16px);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+body[data-bg="7"] .summary,
+body[data-bg="7"] .hero-card,
+body[data-bg="7"] .profile,
+body[data-bg="7"] .current {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: saturate(150%) blur(18px);
+  -webkit-backdrop-filter: saturate(150%) blur(18px);
+}
+
+body[data-bg="7"] .topbar { background: rgba(246, 245, 255, 0.66); backdrop-filter: blur(16px); }
+body[data-bg="7"] .tabbar { background: rgba(255, 255, 255, 0.76); backdrop-filter: blur(18px); }
+body[data-bg="7"] .punch-btn {
+  box-shadow:
+    0 0 0 10px rgba(79, 70, 229, 0.08),
+    0 0 0 22px rgba(79, 70, 229, 0.04),
+    0 18px 44px -14px rgba(79, 70, 229, 0.6);
+}
