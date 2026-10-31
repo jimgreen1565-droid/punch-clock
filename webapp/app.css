@@ -1395,16 +1395,185 @@ body { min-height: 100vh; min-height: 100dvh; }
 .sheet-btn-ghost:hover { background: var(--surface-2); }
 
 /* ==========================================================================
-   15. 响应式微调
+   16. 背景变体（?bg=N 切换，用于跟客户对比选型）
+   --------------------------------------------------------------------------
+   为什么默认是纯净白：
+     打卡 App 的核心场景是"早上在楼下、户外强光"。整屏照片会让深色文字的
+     对比度掉到 3:1 以下，那天早上就基本读不清了。
+   所以照片只做"顶部氛围"，且必须盖蒙版把对比度压回来。
+   整屏照片变体保留，但只在用户明确选择时才用。
    ========================================================================== */
 
-@media (max-height: 680px) {
-  .punch-btn { width: 160px; height: 160px; }
-  .btn-time { font-size: 24px; }
-  .punch-zone { padding: var(--s4) 0 var(--s3); }
-  .hero-num { font-size: 26px; }
+/* 照片只做"顶部氛围"，且蒙版必须铺满整屏。
+   上一版蒙版只在顶部 340px，导致下方内容压在繁忙照片上完全读不清——这是真实的失败案例。
+   现在的做法：照片固定在顶部 300px 高，蒙版用整屏渐变，顶部半透、往下迅速收敛到纯白。 */
+body[data-bg="1"] .shell,
+body[data-bg="2"] .shell {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(180deg,
+      rgba(255,255,255,.62) 0px,
+      rgba(255,255,255,.88) 180px,
+      rgba(255,255,255,.98) 280px,
+      rgba(255,255,255,1) 340px),
+    url('bg/office.jpg');
+  background-size: 100% 100%, 100% 300px;
+  background-position: top left, center 30%;
+  background-repeat: no-repeat, no-repeat;
+  background-attachment: scroll, scroll;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+/* bg=2：更重蒙版，照片几乎只当极淡纹理 */
+body[data-bg="2"] .shell {
+  background-image:
+    linear-gradient(180deg,
+      rgba(255,255,255,.80) 0px,
+      rgba(255,255,255,.94) 180px,
+      rgba(255,255,255,1) 300px),
+    url('bg/office.jpg');
+}
+
+/* bg=3：整屏照片 + 强蒙版（保留对比用，实际不推荐） */
+body[data-bg="3"] .shell {
+  background-image:
+    linear-gradient(180deg, rgba(255,255,255,.95) 0%, rgba(255,255,255,.95) 100%),
+    url('bg/office.jpg');
+  background-size: cover, cover;
+  background-position: center, center center;
+  background-attachment: scroll, fixed;
+}
+
+ba(255,255,255,.95) 0%, rgba(255,255,255,.95) 100%),
+    url('bg/office.jpg');
+  background-size: cover, cover;
+  background-position: center, center center;
+  background-attachment: scroll, fixed;
+}
+
+
+/* ==========================================================================
+   17. bg=4：极淡网格纹理（不用照片）
+   --------------------------------------------------------------------------
+   为什么选它而不是照片：
+     苍白感的根因是"大面积纯白 + 无层次"，解决办法不是塞照片（会干扰文字对比度），
+     而是给背景一层几乎看不见的网格，让空白"有质感"但不抢信息。
+   网格线 1px、透明度 3.5%，只在放大时能感知，正常阅读完全不影响。
+   顶部再加一团极淡的品牌色雾，让页面上半部分有"光从上面来"的感觉。
+   ========================================================================== */
+
+body[data-bg="4"] .shell {
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(180deg, #ffffff 0%, #ffffff 38%, #f4f7fe 100%),
+    radial-gradient(760px 340px at 50% -80px, rgba(37, 99, 235, 0.12), transparent 70%);
+  background-size: 100% 100%, 100% 100%;
+  background-position: top, top center;
+  background-repeat: no-repeat, no-repeat;
+  background-attachment: scroll, scroll;
+}
+
+/* 网格底上卡片保持纯白，形成"纹理底 + 白卡"的层次 */
+body[data-bg="4"] .card { background: #fff; }
+body[data-bg="4"] .topbar { background: rgba(251, 252, 254, 0.92); }
+body[data-bg="4"] .card { border-color: rgba(229, 231, 235, 0.9); }
+
+/* ==========================================================================
+   18. bg=5：扁平分组（去掉卡片边框，只靠间距 + 细线分组）
+   --------------------------------------------------------------------------
+   真正的"太白"根因不是背景色，是卡片把整屏切成一堆白块——白色面积太大，
+   反而没有了呼吸感。钉钉/飞书的打卡页现在都用扁平分组：
+     · 不要卡片边框和独立白底
+     · 用 32px 间距分组，用 1px 细线分隔组内行
+     · 只有"打卡按钮"和"关键卡片"保留一点块感
+   这一版把信息区全部拍平，让页面变成"一块连续的白 + 几根细线"。
+   ========================================================================== */
+
+body[data-bg="5"] .shell { background: #fff; }
+
+body[data-bg="5"] .content { padding-left: var(--s5); padding-right: var(--s5); }
+
+/* 卡片变扁平分组：无边框、无圆角、无独立白底，只用一条细线分上下 */
+body[data-bg="5"] .card {
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  padding: var(--s4) 0;
+  margin: 0;
+}
+
+/* 第一张卡（时间轴）不要顶线，避免页面一开头就是条线 */
+body[data-bg="5"] .tl-card {
+  border-top: none;
+  padding-top: var(--s2);
+}
+
+/* 打卡范围卡片也拍平 */
+body[data-bg="5"] .geo-card {
+  border-top: 1px solid var(--border);
+  padding-top: var(--s4);
+}
+
+/* 组间距：用 32px 拉开，替代卡片的 16px margin */
+body[data-bg="5"] .tl-card + .geo-card { margin-top: var(--s5); }
+
+/* 规则图标、记录、统计页同样拍平 */
+body[data-bg="5"] .menu {
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid var(--border);
+}
+
+body[data-bg="5"] .menu-item {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+body[data-bg="5"] .menu-item:last-child { border-bottom: none; }
+
+body[data-bg="5"] .day {
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding-left: 0;
+  padding-right: 0;
+  margin-bottom: 0;
+}
+
+body[data-bg="5"] .weekbar,
+body[data-bg="5"] .chain {
+  border-radius: var(--r-sm);
+}
+
+body[data-bg="5"] .options {
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid var(--border);
+}
+
+body[data-bg="5"] .option { padding-left: 0; padding-right: 0; }
+
+body[data-bg="5"] .current {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: var(--s3) 0;
+}
+
+body[data-bg="5"] .hero-card {
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: var(--s4) 0;
+}
+
+body[data-bg="5"] .profile {
+  padding: var(--s3) 0 var(--s5);
+  border-bottom: 1px solid var(--border);
+}
+
+body[data-bg="5"] .section-label {
+  padding-top: var(--s5);
+  color: var(--text-3);
 }
