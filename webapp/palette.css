@@ -12,7 +12,11 @@
    这一层不覆盖原 token，只在其上叠加可选主题；未指定时保持蓝色系。
    ========================================================================== */
 
-/* ---- 四套主题（?palette=blue|indigo|teal|amber） ---- */
+/* ---- 四套主题（?palette=blue|indigo|teal|amber） ----
+   变量挂在 body 上（不是 :root）。因为 html 是 body 的父节点，:root 的同名变量
+   不会被子层覆盖回去；body 上声明的 --primary 会被 body 的所有后代继承，
+   所以按钮、标签、渐变都能拿到主题色。
+   注意：测量生效值时要读 body，读 documentElement 会拿到 :root 的默认蓝。 */
 
 body[data-palette="indigo"] {
   --primary: #4f46e5;
