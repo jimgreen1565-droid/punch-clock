@@ -177,6 +177,7 @@
       ownerUid: uid,
       inviteCode: makeCode(uid + '|' + now),
       createdAt: now,
+      requireApproval: true,
     };
     write(K_COMPANY, company);
 
@@ -252,6 +253,7 @@
 
   /**
    * 用邀请码加入（会新建一个本机身份，用于体验员工视角）。
+   * 若公司开了审批（requireApproval），这里只提交申请，不产生成员记录。
    */
   function joinByInvite(rawCode, nickname) {
     var code = normalizeCode(rawCode);
@@ -268,9 +270,16 @@
       return { ok: false, code: 'ALREADY_IN', message: '这个身份已在公司里' };
     }
 
+    var nickname2 = String(nickname || '新员工').slice(0, 16);
+
+    // 需要审批 → 走申请流程，不写成员表
+    if (company.requireApproval) {
+      return applyToJoin(code, nickname2, '');
+    }
+
     var member = {
       uid: uid,
-      nickname: String(nickname || '新员工').slice(0, 16),
+      nickname: nickname2,
       role: 'member',
       joinedAt: now,
       status: 'active',
@@ -286,6 +295,199 @@
     setCurrentUid(uid);
 
     return { ok: true, code: 'OK', message: '已加入 ' + company.name, member: member };
+  }
+
+  /* ---------------- 加入审批流 ----------------
+     与 miniprogram/utils/joinRequest.js 同一套状态机：
+       pending → approved / rejected / cancelled
+     关键不变量：
+       1. 申请本身不授予任何权限，只有 approved 才写成员表
+       2. 审批通过时角色**固定 member**，不接受申请里的 role
+       3. 同一人只能有一条 pending
+       4. 驳回后有冷却期，防骚扰
+  */
+
+  var K_JOIN = 'PC_JOIN_REQUESTS';
+  var RECHECK_COOLDOWN = 10 * 60 * 1000;
+
+  var JOIN_STATUS = {
+    pending: '待审批',
+    approved: '已通过',
+    rejected: '已驳回',
+    cancelled: '已撤回',
+  };
+
+  function getJoinRequests() {
+    var l = read(K_JOIN, []);
+    return Array.isArray(l) ? l : [];
+  }
+
+  function setJoinRequests(list) {
+    write(K_JOIN, list);
+    return list;
+  }
+
+  /** 提交加入申请（不产生成员记录） */
+  function applyToJoin(rawCode, nickname, reason) {
+    var code = normalizeCode(rawCode);
+    if (!code) return { ok: false, code: 'BAD_FORMAT', message: '邀请码是 6 位字母数字' };
+
+    var company = getCompany();
+    if (!company) return { ok: false, code: 'NO_COMPANY', message: '本机还没有公司' };
+    if (company.inviteCode !== code) return { ok: false, code: 'WRONG_CODE', message: '邀请码不正确' };
+
+    var list = getJoinRequests();
+    var uid = 'U' + hash32(String(nickname) + '|' + Date.now()).toString(36).slice(0, 8);
+
+    // 已有一条 pending → 不重复提交
+    var pending = list.filter(function (r) {
+      return r.companyId === company.id && r.uid === uid && r.status === 'pending';
+    })[0];
+    if (pending) {
+      return { ok: false, code: 'ALREADY_PENDING', message: '你已经提交过申请，请等待管理员处理', request: pending };
+    }
+
+    // 驳回冷却期
+    var now = Date.now();
+    var lastRejected = list.filter(function (r) {
+      return r.companyId === company.id && r.uid === uid && r.status === 'rejected';
+    }).sort(function (a, b) { return (b.reviewedAt || 0) - (a.reviewedAt || 0); })[0];
+    if (lastRejected && now - (lastRejected.reviewedAt || 0) < RECHECK_COOLDOWN) {
+      var waitMin = Math.ceil((RECHECK_COOLDOWN - (now - (lastRejected.reviewedAt || 0))) / 60000);
+      return { ok: false, code: 'COOLING', message: '刚被驳回，请等 ' + waitMin + ' 分钟后再申请' };
+    }
+
+    var req = {
+      id: 'J' + now.toString(36) + String(list.length % 97),
+      companyId: company.id,
+      uid: uid,
+      nickname: String(nickname || '申请人').slice(0, 16),
+      reason: String(reason || '').slice(0, 100),
+      inviteCodeUsed: code,
+      status: 'pending',
+      createdAt: now,
+    };
+    list.push(req);
+    setJoinRequests(list);
+    return { ok: true, code: 'OK', message: '申请已提交，等待管理员审批', request: req };
+  }
+
+  /** 待审批列表（仅管理员可见） */
+  function listPendingJoins(operatorUid) {
+    if (!canDo('member.invite', operatorUid)) return [];
+    var c = getCompany();
+    if (!c) return [];
+    return getJoinRequests()
+      .filter(function (r) { return r.companyId === c.id && r.status === 'pending'; })
+      .sort(function (a, b) { return a.createdAt - b.createdAt; });
+  }
+
+  /** 我最近的申请状态 */
+  function myJoinStatus(uid) {
+    var c = getCompany();
+    if (!c) return null;
+    var uid2 = uid || currentUid();
+    var r = getJoinRequests()
+      .filter(function (x) { return x.companyId === c.id && x.uid === uid2; })
+      .sort(function (a, b) { return b.createdAt - a.createdAt; })[0];
+    if (!r) return null;
+    return {
+      request: r,
+      status: r.status,
+      label: JOIN_STATUS[r.status] || r.status,
+      isMember: !!roleOf(uid2),
+    };
+  }
+
+  /**
+   * 审批。角色固定 member；操作人权限再校验一次（纵深防御）。
+   */
+  function reviewJoin(requestId, approve, operatorUid, note) {
+    if (!canDo('member.invite', operatorUid) && !canDo('patch.approve', operatorUid)) {
+      return { ok: false, code: 'FORBIDDEN', message: '你没有审批加入申请的权限' };
+    }
+
+    var list = getJoinRequests();
+    var req = list.filter(function (r) { return r.id === requestId; })[0];
+    if (!req) return { ok: false, code: 'NOT_FOUND', message: '申请不存在' };
+    if (req.status !== 'pending') {
+      return { ok: false, code: 'ALREADY_REVIEWED', message: '这条申请已经处理过了（' + JOIN_STATUS[req.status] + '）' };
+    }
+
+    req.status = approve ? 'approved' : 'rejected';
+    req.reviewedAt = Date.now();
+    req.reviewedBy = operatorUid;
+    req.reviewNote = String(note || '').slice(0, 100);
+    setJoinRequests(list);
+
+    if (approve) {
+      // 关键：角色**固定 member**，绝不接受申请里的 role
+      var members = getMembers();
+      if (!members.some(function (m) { return m.uid === req.uid; })) {
+        members.push({
+          uid: req.uid,
+          nickname: req.nickname,
+          role: 'member',
+          joinedAt: Date.now(),
+          status: 'active',
+          inviteCodeUsed: req.inviteCodeUsed,
+        });
+        write(K_MEMBERS, members);
+      }
+      var accounts = getAccounts() || [];
+      if (!accounts.some(function (a) { return a.uid === req.uid; })) {
+        accounts.push({ uid: req.uid, nickname: req.nickname });
+        setAccounts(accounts);
+      }
+    }
+
+    return {
+      ok: true,
+      code: 'OK',
+      message: approve ? '已通过，对方可以开始打卡' : '已驳回',
+      request: req,
+    };
+  }
+
+  /** 申请人撤回 */
+  function cancelJoin(requestId, uid) {
+    var list = getJoinRequests();
+    var req = list.filter(function (r) { return r.id === requestId; })[0];
+    if (!req) return { ok: false, code: 'NOT_FOUND', message: '申请不存在' };
+    if (req.uid !== (uid || currentUid())) return { ok: false, code: 'FORBIDDEN', message: '只能撤回自己的申请' };
+    if (req.status !== 'pending') return { ok: false, code: 'ALREADY_REVIEWED', message: '已经处理过的申请不能撤回' };
+    req.status = 'cancelled';
+    req.cancelledAt = Date.now();
+    setJoinRequests(list);
+    return { ok: true, code: 'OK', message: '已撤回' };
+  }
+
+  /** 开关审批 */
+  function setRequireApproval(on) {
+    var c = getCompany();
+    if (!c) return null;
+    if (!canDo('member.invite')) return null;
+    c.requireApproval = !!on;
+    write(K_COMPANY, c);
+    return c;
+  }
+
+  function getRequireApproval() {
+    var c = getCompany();
+    return c ? !!c.requireApproval : true;
+  }
+
+  /** 审批统计 */
+  function joinStats() {
+    var c = getCompany();
+    if (!c) return { pending: 0, approved: 0, rejected: 0, total: 0 };
+    var list = getJoinRequests().filter(function (r) { return r.companyId === c.id; });
+    return {
+      pending: list.filter(function (r) { return r.status === 'pending'; }).length,
+      approved: list.filter(function (r) { return r.status === 'approved'; }).length,
+      rejected: list.filter(function (r) { return r.status === 'rejected'; }).length,
+      total: list.length,
+    };
   }
 
   /** 切换本机身份（体验不同角色） */
@@ -363,6 +565,15 @@
     roleOf: roleOf,
     canDo: canDo,
     joinByInvite: joinByInvite,
+    applyToJoin: applyToJoin,
+    listPendingJoins: listPendingJoins,
+    myJoinStatus: myJoinStatus,
+    reviewJoin: reviewJoin,
+    cancelJoin: cancelJoin,
+    setRequireApproval: setRequireApproval,
+    getRequireApproval: getRequireApproval,
+    joinStats: joinStats,
+    JOIN_STATUS: JOIN_STATUS,
     getAccounts: getAccounts,
     setAccounts: setAccounts,
     currentUid: currentUid,

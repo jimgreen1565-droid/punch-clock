@@ -5,7 +5,8 @@
     "pages/stats/stats",
     "pages/me/me",
     "pages/rules/rules",
-    "pages/admin/admin"
+    "pages/admin/admin",
+    "pages/team/team"
   ],
   "window": {
     "backgroundTextStyle": "dark",

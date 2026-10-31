@@ -132,14 +132,9 @@ function setRuleSet(patch) {
   if (patch && patch.geo) next.geo = Object.assign({}, cur.geo || {}, patch.geo);
   if (patch && patch.wifi) next.wifi = Object.assign({}, cur.wifi || {}, patch.wifi);
   if (patch && patch.rotation) next.rotation = Object.assign({}, cur.rotation || {}, patch.rotation);
+  if (patch && patch.patch) next.patch = Object.assign({}, cur.patch || {}, patch.patch);
   next.updatedAt = Date.now();
-  var normalized = rules.normalizeRuleSet(next);
-  writeJSON(K.ruleSet, normalized);
-  try {
-    var comp = require('./company');
-    var company = comp.getCompany();
-    if (company) { company.ruleSet = normalized; comp.setCompany(company); }
-  } catch (e) { /* 单机模式忽略 */ }
+  commitRuleSet(rules.normalizeRuleSet(next));
   return getRuleSet();
 }
 
@@ -153,8 +148,7 @@ function switchRuleType(type) {
 function resetRuleType(type) {
   const d = rules.defaultRuleSet();
   d.type = type;
-  writeJSON(K.ruleSet, rules.normalizeRuleSet(d));
-  return getRuleSet();
+  return commitRuleSet(rules.normalizeRuleSet(d));
 }
 
 /* ------------------------------ 规则模板 ------------------------------ */
@@ -178,10 +172,31 @@ function savePreset(name) {
   return preset;
 }
 
+/**
+ * 规则写入的唯一通道。
+ * 公司模式下规则存在公司上（成员共享），单机模式落本机。
+ * 之前 applyPreset / resetRuleType 直接 writeJSON(K.ruleSet)，
+ * 与 getRuleSetRaw（优先读公司层）不一致 → 写入被读不到。
+ */
+function commitRuleSet(normalized) {
+  writeJSON(K.ruleSet, normalized);
+  try {
+    const comp = require('./company');
+    const company = comp.getCompany();
+    if (company) {
+      company.ruleSet = normalized;
+      comp.setCompany(company);
+    }
+  } catch (e) {
+    // 单机模式忽略
+  }
+  return normalized;
+}
+
 function applyPreset(id) {
   const p = getPresets().find((x) => x.id === id);
   if (!p) return getRuleSet();
-  writeJSON(K.ruleSet, rules.normalizeRuleSet(p.ruleSet));
+  commitRuleSet(rules.normalizeRuleSet(p.ruleSet));
   return getRuleSet();
 }
 

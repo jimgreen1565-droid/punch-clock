@@ -4,7 +4,7 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 
-const files = ['core.test.js', 'hash-consistency.test.js', 'server-rules.test.js', 'rule-compare.test.js', 'pages.test.js', 'cloud.test.js', 'web.test.js', 'permissions.test.js'];
+const files = ['core.test.js', 'hash-consistency.test.js', 'server-rules.test.js', 'rule-compare.test.js', 'pages.test.js', 'cloud.test.js', 'web.test.js', 'permissions.test.js', 'join-request.test.js', 'cloud-approval.test.js'];
 let failed = 0;
 
 files.forEach((f) => {

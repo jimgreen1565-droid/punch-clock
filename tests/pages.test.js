@@ -111,6 +111,17 @@ function resetAll() {
   delete global.__GEO_FAIL__;
   delete global.__GEO_LAT__;
   delete global.__GEO_LNG__;
+  // 规则页现在有权限门禁：必须让测试用户成为公司 owner，否则 canEdit=false
+  // 会把所有"改规则"的用例拦住。这里在每次 reset 后建一家公司。
+  try {
+    const company = require('../miniprogram/utils/company');
+    const store = require('../miniprogram/utils/store');
+    store.init();
+    const boot = store.getBootInfo();
+    company.ensureCompany(boot.uid, '测试管理员');
+  } catch (e) {
+    // 未加载 company 的旧用例忽略
+  }
 }
 
 /* ------------------------------- 测试 ------------------------------- */

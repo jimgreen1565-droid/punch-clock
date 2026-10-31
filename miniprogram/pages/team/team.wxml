@@ -1,0 +1,108 @@
+<view class="container">
+  <!-- 公司卡 -->
+  <view class="card company-card">
+    <view class="company-name">{{companyName}}</view>
+    <view class="company-meta">{{memberCount}} 位成员 · 你的角色：{{myRoleName}}</view>
+  </view>
+
+  <!-- 待审批申请（仅管理员） -->
+  <view wx:if="{{canReview && pendingJoins.length}}">
+    <view class="section-label">待审批 · {{pendingJoins.length}}</view>
+    <view class="card" wx:for="{{pendingJoins}}" wx:key="id">
+      <view class="join-row">
+        <view class="join-avatar">{{item.initial}}</view>
+        <view class="join-info">
+          <view class="join-name">{{item.nickname}}</view>
+          <view class="join-sub">{{item.agoText}}</view>
+        </view>
+      </view>
+      <view class="join-reason" wx:if="{{item.reason}}">「{{item.reason}}」</view>
+      <view class="join-ops">
+        <button class="op op-ok" bindtap="approveJoin" data-id="{{item.id}}">通过</button>
+        <button class="op op-bad" bindtap="rejectJoin" data-id="{{item.id}}">驳回</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 我的申请状态（非成员） -->
+  <view wx:if="{{myJoin && !myJoin.isMember}}">
+    <view class="section-label">我的申请</view>
+    <view class="card">
+      <view class="row">
+        <text class="k">状态</text>
+        <text class="v"><text class="tag tag-{{myJoinTone}}">{{myJoinLabel}}</text></text>
+      </view>
+      <view class="row" wx:if="{{myJoin.request.reason}}">
+        <text class="k">申请理由</text>
+        <text class="v">{{myJoin.request.reason}}</text>
+      </view>
+      <view class="row" wx:if="{{myJoin.request.reviewNote}}">
+        <text class="k">管理员备注</text>
+        <text class="v">{{myJoin.request.reviewNote}}</text>
+      </view>
+      <button class="btn-ghost" wx:if="{{myJoin.status === 'pending'}}" bindtap="cancelJoin">撤回申请</button>
+    </view>
+  </view>
+
+  <!-- 加入公司（非成员视角） -->
+  <view wx:if="{{!isMember}}" class="card join-entry">
+    <view class="section-label">加入公司</view>
+    <view class="muted join-entry-hint">输入管理员给你的 6 位邀请码</view>
+    <input class="join-input" placeholder="例如 ZJNY62" maxlength="6" value="{{inviteInput}}" bindinput="onInviteInput" />
+    <button class="btn-primary join-btn" bindtap="submitJoin">{{requireApproval ? '提交加入申请' : '加入公司'}}</button>
+    <view class="muted join-entry-note" wx:if="{{requireApproval}}">提交后需要管理员审批，通过后你才能开始打卡。</view>
+  </view>
+
+  <!-- 邀请码（仅能邀请的角色） -->
+  <view wx:if="{{canInvite}}">
+    <view class="section-label">邀请成员</view>
+    <view class="card">
+      <view class="invite-code">{{inviteCode}}</view>
+      <view class="muted invite-hint">把邀请码发给同事。对方提交申请，你审批通过后即可开始打卡。</view>
+      <view class="inline-ops">
+        <button class="btn-ghost" bindtap="copyInvite">复制邀请码</button>
+        <button class="btn-ghost" bindtap="refreshInvite">更换</button>
+      </view>
+      <view class="row join-toggle">
+        <text class="k">加入需要审批</text>
+        <switch checked="{{requireApproval}}" bindchange="onToggleApproval" color="#4f46e5" />
+      </view>
+    </view>
+  </view>
+  <view wx:else>
+    <view class="section-label">邀请成员</view>
+    <view class="card"><view class="muted">只有管理员可以邀请成员。邀请码请向管理员索取。</view></view>
+  </view>
+
+  <!-- 成员列表 -->
+  <view class="section-label">成员 · {{memberCount}}</view>
+  <view class="card card-tight">
+    <view class="member-row" wx:for="{{members}}" wx:key="uid">
+      <view class="member-avatar">{{item.initial}}</view>
+      <view class="member-info">
+        <view class="member-name">{{item.nickname}}<text wx:if="{{item.isMe}}" class="member-me">就是你</text></view>
+        <view class="member-sub">{{item.roleName}} · {{item.joinedText}}</view>
+      </view>
+      <button class="btn-sm" wx:if="{{canSetRole && item.role !== 'owner'}}" catchtap="changeRole" data-uid="{{item.uid}}" data-name="{{item.nickname}}">改角色</button>
+      <button class="btn-sm btn-sm-danger" wx:if="{{canRemove && item.role !== 'owner' && !item.isMe}}" catchtap="removeMember" data-uid="{{item.uid}}" data-name="{{item.nickname}}">移除</button>
+    </view>
+  </view>
+
+  <!-- 转让（仅创建者） -->
+  <view wx:if="{{isOwner && transferables.length}}">
+    <view class="section-label">创建者操作</view>
+    <view class="card">
+      <view class="muted">转让后你会变成管理员，对方成为创建者。创建者只有一个。</view>
+      <button class="btn-ghost" bindtap="transferOwnership">转让创建者</button>
+    </view>
+  </view>
+
+  <!-- 员工说明 -->
+  <view wx:if="{{!canInvite}}" class="card">
+    <view class="muted">你的角色是「{{myRoleName}}」，只能打卡、申请补卡、查看自己的记录。公司设置与考勤规则由管理员维护。</view>
+  </view>
+
+  <view class="footer-note">
+    规则变更与成员变动都会留下操作记录，可追溯
+  </view>
+</view>

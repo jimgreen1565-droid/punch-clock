@@ -8,6 +8,11 @@
     <view class="cur-desc">{{ruleDesc}}</view>
   </view>
 
+  <!-- 只读提示（非管理员） -->
+  <view class="readonly-note" wx:if="{{!canEdit}}">
+    考勤规则由管理员统一设置，你可以查看但不能修改。如需调整请联系管理员。
+  </view>
+
   <!-- 四选一 -->
   <view class="section-label">选择考勤规则</view>
   <view class="options">

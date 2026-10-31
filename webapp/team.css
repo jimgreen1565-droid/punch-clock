@@ -234,3 +234,92 @@
     background: rgba(255, 255, 255, 0.04);
   }
 }
+
+/* ==================== 加入审批流 ==================== */
+
+/* 待审批卡片 */
+.join-reason {
+  margin-top: var(--s2);
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* 通过 / 驳回 按钮组 */
+.join-ops {
+  display: flex;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+
+.join-ops .btn-sm {
+  flex: 1;
+  justify-content: center;
+}
+
+/* 通过按钮：唯一的绿色强调（审批是主动操作） */
+.op-ok {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #047857;
+}
+
+/* 审批开关（iOS 风格） */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 26px;
+  flex: none;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch .slider {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 26px;
+  transition: background 0.2s ease;
+  cursor: pointer;
+}
+
+.switch .slider::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.switch input:checked + .slider {
+  background: var(--primary);
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(18px);
+}
+
+@media (prefers-color-scheme: dark) {
+  .op-ok {
+    background: rgba(16, 185, 129, 0.16);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #34d399;
+  }
+
+  .join-reason {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}

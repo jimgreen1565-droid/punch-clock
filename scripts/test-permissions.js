@@ -21,6 +21,8 @@ await p.waitForTimeout(800);
 const step1 = await p.evaluate(() => {
   const C = window.PC_COMPANY;
   const code = C.getCompany().inviteCode;
+  // 本用例验证"角色权限"，先关掉审批，直接入成员
+  C.setRequireApproval(false);
   const before = { code, members: C.getMembers().length, role: C.roleOf(), canEdit: C.canDo('rule.edit') };
   const r = C.joinByInvite(code, '张三');
   return {

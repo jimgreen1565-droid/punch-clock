@@ -21,6 +21,10 @@ const _ = db.command;
 const COL_USER = 'pc_users';
 const COL_COMPANY = 'pc_companies';
 const COL_MEMBER = 'pc_members';
+const COL_JOIN = 'pc_join_requests';
+
+/** 驳回后多久能再次申请（毫秒） */
+const RECHECK_COOLDOWN = 10 * 60 * 1000;
 
 /** 角色等级：与小程序 core/permissions.js 保持一致 */
 const LEVEL = { owner: 4, admin: 3, manager: 2, member: 1 };
@@ -150,7 +154,12 @@ exports.main = async (event) => {
         role: me.role,
         companyId: me.companyId,
         company: company
-          ? { id: company.id, name: company.name, inviteCode: canInvite ? company.inviteCode : null }
+          ? {
+              id: company.id,
+              name: company.name,
+              inviteCode: canInvite ? company.inviteCode : null,
+              requireApproval: company.requireApproval !== false,
+            }
           : null,
         members,
         canEditRule: can(me.role, 'rule.edit'),
@@ -239,6 +248,11 @@ exports.main = async (event) => {
       const company = r.data && r.data[0];
       if (!company) return C.fail('WRONG_CODE', '邀请码不正确');
 
+      // 需要审批 → 不能绕过流程直接加入
+      if (company.requireApproval !== false) {
+        return C.fail('NEED_APPROVAL', '这家公司需要管理员审批，请提交加入申请');
+      }
+
       // 关键：加入时角色**硬编码为 member**，绝不接受 payload 里的 role
       await db.collection(COL_MEMBER).add({
         data: {
@@ -262,6 +276,213 @@ exports.main = async (event) => {
       } catch (e) { /* ignore */ }
 
       return C.ok({ companyId: company.id, companyName: company.name, role: 'member' });
+    }
+
+    /* ---------------- 写：提交加入申请（不产生成员记录） ---------------- */
+    if (action === 'applyJoin') {
+      const me = await whoAmI(OPENID);
+      if (!me.ok) return me.error;
+      if (me.user.companyId && me.user.companyId !== 'default') {
+        return C.fail('ALREADY_IN_COMPANY', '你已经在一家公司里');
+      }
+
+      const code = normalizeCode(payload.inviteCode);
+      if (!code) return C.fail('BAD_CODE', '邀请码格式不对');
+
+      const cR = await db.collection(COL_COMPANY).where({ inviteCode: code }).limit(1).get();
+      const company = cR.data && cR.data[0];
+      if (!company) return C.fail('WRONG_CODE', '邀请码不正确');
+
+      // 已有一条 pending → 不重复提交
+      const pR = await db.collection(COL_JOIN).where({
+        companyId: company.id,
+        openid: OPENID,
+        status: 'pending',
+      }).limit(1).get();
+      if (pR.data && pR.data[0]) {
+        return C.fail('ALREADY_PENDING', '你已经提交过申请，请等待管理员处理');
+      }
+
+      // 驳回冷却：防止被反复驳回后刷屏
+      const rejR = await db.collection(COL_JOIN).where({
+        companyId: company.id,
+        openid: OPENID,
+        status: 'rejected',
+      }).limit(20).get();
+      const lastRejected = (rejR.data || [])
+        .sort((a, b) => (b.reviewedAt || 0) - (a.reviewedAt || 0))[0];
+      if (lastRejected && now - (lastRejected.reviewedAt || 0) < RECHECK_COOLDOWN) {
+        const waitMin = Math.ceil((RECHECK_COOLDOWN - (now - (lastRejected.reviewedAt || 0))) / 60000);
+        return C.fail('COOLING', '刚被驳回，请等 ' + waitMin + ' 分钟后再申请');
+      }
+
+      const req = {
+        companyId: company.id,
+        openid: OPENID,
+        nickname: (payload.nickname || me.user.nickname || '申请人').slice(0, 16),
+        reason: String(payload.reason || '').slice(0, 100),
+        inviteCodeUsed: code,
+        status: 'pending',
+        createdAt: now,
+      };
+      await db.collection(COL_JOIN).add({ data: req });
+
+      try {
+        await db.collection('pc_audit').add({
+          data: { openid: OPENID, kind: 'company.applyJoin', companyId: company.id, at: now },
+        });
+      } catch (e) { /* ignore */ }
+
+      return C.ok({ companyId: company.id, companyName: company.name, status: 'pending' });
+    }
+
+    /* ---------------- 读：待审批列表（仅 owner/admin） ---------------- */
+    if (action === 'pendingList') {
+      const me = await requireAction(OPENID, 'member.invite');
+      if (!me.ok) return me.error;
+      const r = await db.collection(COL_JOIN).where({
+        companyId: me.companyId,
+        status: 'pending',
+      }).limit(100).get();
+      const list = (r.data || [])
+        .sort((a, b) => a.createdAt - b.createdAt)
+        .map((x) => ({
+          id: x._id,
+          openid: x.openid,
+          nickname: x.nickname,
+          reason: x.reason || '',
+          createdAt: x.createdAt,
+        }));
+      return C.ok({ list });
+    }
+
+    /* ---------------- 读：我的申请状态 ---------------- */
+    if (action === 'myJoin') {
+      const me = await whoAmI(OPENID);
+      if (!me.ok) return me.error;
+      const r = await db.collection(COL_JOIN).where({
+        companyId: me.companyId,
+        openid: OPENID,
+      }).limit(20).get();
+      const list = (r.data || []).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      const latest = list[0];
+      return C.ok({
+        request: latest
+          ? {
+              id: latest._id,
+              status: latest.status,
+              reason: latest.reason || '',
+              reviewNote: latest.reviewNote || '',
+              createdAt: latest.createdAt,
+            }
+          : null,
+        isMember: me.companyId !== 'default',
+      });
+    }
+
+    /* ---------------- 写：审批加入申请（仅 owner/admin） ---------------- */
+    if (action === 'reviewJoin') {
+      const me = await requireAction(OPENID, 'member.invite');
+      if (!me.ok) return me.error;
+
+      const requestId = payload.requestId;
+      if (!requestId) return C.fail('BAD_REQUEST', '缺少申请 id');
+
+      const r = await db.collection(COL_JOIN).doc(requestId).get();
+      const req = r.data;
+      if (!req) return C.fail('NOT_FOUND', '申请不存在');
+      if (req.companyId !== me.companyId) return C.fail('FORBIDDEN', '不能审批其他公司的申请');
+      if (req.status !== 'pending') return C.fail('ALREADY_REVIEWED', '这条申请已经处理过了');
+
+      const approve = !!payload.approve;
+      await db.collection(COL_JOIN).doc(requestId).update({
+        data: {
+          status: approve ? 'approved' : 'rejected',
+          reviewedAt: now,
+          reviewedBy: OPENID,
+          reviewNote: String(payload.note || '').slice(0, 100),
+        },
+      });
+
+      if (approve) {
+        // 关键：角色**固定 member**，绝不接受申请里传来的任何角色字段
+        const mR = await db.collection(COL_MEMBER).where({
+          companyId: me.companyId,
+          openid: req.openid,
+        }).limit(1).get();
+        const existing = mR.data && mR.data[0];
+        if (!existing) {
+          await db.collection(COL_MEMBER).add({
+            data: {
+              companyId: me.companyId,
+              openid: req.openid,
+              nickname: req.nickname,
+              role: 'member',
+              joinedAt: now,
+              status: 'active',
+              inviteCodeUsed: req.inviteCodeUsed,
+              approvedBy: OPENID,
+            },
+          });
+        } else {
+          await db.collection(COL_MEMBER).where({
+            companyId: me.companyId,
+            openid: req.openid,
+          }).update({ data: { status: 'active', role: 'member' } });
+        }
+        await db.collection(COL_USER).where({ openid: req.openid }).update({
+          data: { companyId: me.companyId, role: 'member' },
+        });
+      }
+
+      try {
+        await db.collection('pc_audit').add({
+          data: {
+            openid: OPENID,
+            kind: approve ? 'company.approveJoin' : 'company.rejectJoin',
+            target: req.openid,
+            companyId: me.companyId,
+            at: now,
+          },
+        });
+      } catch (e) { /* ignore */ }
+
+      return C.ok({ approved: approve, openid: req.openid });
+    }
+
+    /* ---------------- 写：撤回自己的申请 ---------------- */
+    if (action === 'cancelJoin') {
+      const me = await whoAmI(OPENID);
+      if (!me.ok) return me.error;
+      const requestId = payload.requestId;
+      if (!requestId) return C.fail('BAD_REQUEST', '缺少申请 id');
+
+      const r = await db.collection(COL_JOIN).doc(requestId).get();
+      const req = r.data;
+      if (!req) return C.fail('NOT_FOUND', '申请不存在');
+      if (req.openid !== OPENID) return C.fail('FORBIDDEN', '只能撤回自己的申请');
+      if (req.status !== 'pending') return C.fail('ALREADY_REVIEWED', '已经处理过的申请不能撤回');
+
+      await db.collection(COL_JOIN).doc(requestId).update({
+        data: { status: 'cancelled', cancelledAt: now },
+      });
+      return C.ok({ cancelled: true });
+    }
+
+    /* ---------------- 写：开关"加入需要审批"（仅 owner/admin） ---------------- */
+    if (action === 'setApproval') {
+      const me = await requireAction(OPENID, 'member.invite');
+      if (!me.ok) return me.error;
+      const on = !!payload.requireApproval;
+      await db.collection(COL_COMPANY).where({ id: me.companyId }).update({
+        data: { requireApproval: on, requireApprovalUpdatedAt: now, requireApprovalBy: OPENID },
+      });
+      try {
+        await db.collection('pc_audit').add({
+          data: { openid: OPENID, kind: 'company.setApproval', value: on, companyId: me.companyId, at: now },
+        });
+      } catch (e) { /* ignore */ }
+      return C.ok({ requireApproval: on });
     }
 
     /* ---------------- 写：换邀请码（仅 owner/admin） ---------------- */

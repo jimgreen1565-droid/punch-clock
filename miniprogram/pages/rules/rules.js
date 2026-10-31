@@ -1,6 +1,8 @@
 const store = require('../../utils/store');
 const geo = require('../../utils/geo');
 const rules = require('../../core/rules');
+const company = require('../../utils/company');
+const permissions = require('../../core/permissions');
 
 Page({
   data: {
@@ -17,6 +19,7 @@ Page({
     patchQuotaText: '',
     patchUsed: 0,
     presets: [],
+    canEdit: true,
   },
 
   onShow() {
@@ -43,6 +46,7 @@ Page({
       patchDaysText: rs.patch.maxDays === 0 ? '仅当天' : '过去 ' + rs.patch.maxDays + ' 天',
       patchQuotaText: rs.patch.maxPerMonth === 0 ? '不限' : rs.patch.maxPerMonth + ' 次',
       patchUsed: this.countPatchUsed(),
+      canEdit: company.canDo(store.getBootInfo().uid, 'rule.edit'),
       presets,
     });
   },
@@ -50,6 +54,11 @@ Page({
   /* ---------- 类型切换 ---------- */
 
   onPickType(e) {
+    // 权限门禁：员工不能改规则（真正的拦截在云函数）
+    if (!this.data.canEdit) {
+      wx.showToast({ title: '考勤规则由管理员设置', icon: 'none' });
+      return;
+    }
     const type = e.currentTarget.dataset.type;
     if (type === this.data.ruleSet.type) return;
     const name = rules.ruleTypeName(type);

@@ -15,6 +15,15 @@
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  function agoText(ts) {
+    if (!ts) return '';
+    var s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 60) return '刚刚';
+    if (s < 3600) return Math.floor(s / 60) + ' 分钟前';
+    if (s < 86400) return Math.floor(s / 3600) + ' 小时前';
+    return Math.floor(s / 86400) + ' 天前';
+  }
+
   function can(action) {
     return C.canDo(action);
   }
@@ -30,6 +39,9 @@
     var canSetRole = can('member.setRole');
     var canRemove = can('member.remove');
     var canTransfer = C.atLeast(myRole, 'owner');
+    var requireApproval = C.getRequireApproval();
+    var pending = C.listPendingJoins(C.currentUid());
+    var myJoin = C.myJoinStatus();
 
     var html = '<div class="page">';
 
@@ -39,6 +51,40 @@
     html += '<div class="company-meta">' + members.length + ' 位成员 · 你的角色：' + C.roleName(myRole) + '</div>';
     html += '</div>';
 
+    // ---- 待审批（仅管理员）----
+    if (canInvite && pending.length) {
+      html += '<div class="section-label">待审批 · ' + pending.length + '</div>';
+      pending.forEach(function (r) {
+        html += '<div class="card">';
+        html += '<div class="member-row">';
+        html += '<div class="member-avatar">' + h((r.nickname || '?').slice(0, 1)) + '</div>';
+        html += '<div class="member-info">';
+        html += '<div class="member-name">' + h(r.nickname) + '</div>';
+        html += '<div class="member-sub">' + h(agoText(r.createdAt)) + '</div>';
+        html += '</div></div>';
+        if (r.reason) html += '<div class="join-reason">「' + h(r.reason) + '」</div>';
+        html += '<div class="join-ops">';
+        html += '<button class="btn-sm op-ok" data-approve-join="' + h(r.id) + '">通过</button>';
+        html += '<button class="btn-sm btn-sm-danger" data-reject-join="' + h(r.id) + '">驳回</button>';
+        html += '</div></div>';
+      });
+    }
+
+    // ---- 我的申请（非成员视角）----
+    if (myJoin && !myJoin.isMember) {
+      html += '<div class="section-label">我的申请</div>';
+      html += '<div class="card">';
+      html += '<div class="member-row"><div class="member-info">';
+      html += '<div class="member-name">状态 · ' + h(myJoin.label) + '</div>';
+      if (myJoin.request.reason) html += '<div class="member-sub">理由：' + h(myJoin.request.reason) + '</div>';
+      if (myJoin.request.reviewNote) html += '<div class="member-sub">管理员备注：' + h(myJoin.request.reviewNote) + '</div>';
+      html += '</div></div>';
+      if (myJoin.status === 'pending') {
+        html += '<button class="btn-ghost" id="cancelJoinBtn" style="margin-top:var(--s3)">撤回申请</button>';
+      }
+      html += '</div>';
+    }
+
     // ---- 邀请码（只有管理员能看到完整码）----
     if (canInvite) {
       html += '<div class="section-label">邀请成员</div>';
@@ -47,15 +93,24 @@
       html += '<div class="invite-code" id="inviteCode">' + h(company.inviteCode) + '</div>';
       html += '<button class="btn-sm" id="copyCode">复制</button>';
       html += '</div>';
-      html += '<div class="muted" style="margin-top:var(--s2)">把邀请码发给同事，他在这台设备上用「加入公司」输入即可成为员工。邀请码可随时更换，旧码立即失效。</div>';
+      html += '<div class="muted" style="margin-top:var(--s2)">把邀请码发给同事。' +
+        (requireApproval ? '对方提交申请，你审批通过后即可开始打卡。' : '对方输入后立即成为员工。') +
+        ' 邀请码可随时更换，旧码立即失效。</div>';
       html += '<button class="btn" id="refreshCode" style="margin-top:var(--s3)">更换邀请码</button>';
+      html += '<div class="member-row" style="margin-top:var(--s3)">';
+      html += '<div class="member-info"><div class="member-name">加入需要审批</div>';
+      html += '<div class="member-sub">关闭后，拿到邀请码即可直接加入</div></div>';
+      html += '<label class="switch"><input type="checkbox" id="approvalToggle"' + (requireApproval ? ' checked' : '') + '><span class="slider"></span></label>';
+      html += '</div>';
       html += '</div>';
 
       // ---- 体验用：加入一个测试员工 ----
       html += '<div class="card trial-card">';
       html += '<div class="card-title"><span>试用：加一个员工身份</span><span class="sub">仅本机体验</span></div>';
-      html += '<div class="muted">网页版没有后端，这里可以在同一台设备上造一个员工身份，用来验证"员工看不到规则编辑"。</div>';
-      html += '<button class="btn" id="addTrial" style="margin-top:var(--s3)">用邀请码加入一个员工</button>';
+      html += '<div class="muted">网页版没有后端，这里可以在同一台设备上造一个员工身份' +
+        (requireApproval ? '并提交一条申请，用来验证审批流。' : '，用来验证"员工看不到规则编辑"。') + '</div>';
+      html += '<button class="btn" id="addTrial" style="margin-top:var(--s3)">' +
+        (requireApproval ? '提交一条加入申请' : '用邀请码加入一个员工') + '</button>';
       html += '</div>';
     } else {
       html += '<div class="section-label">邀请成员</div>';
@@ -131,19 +186,82 @@
     var addTrial = document.getElementById('addTrial');
     if (addTrial) {
       addTrial.onclick = function () {
+        var needsApproval = C.getRequireApproval();
         U.openSheet({
-          title: '加一个员工身份',
-          body: '会新建一个本机身份并用当前邀请码加入，然后自动切换到该身份，方便你验证员工视角。',
+          title: needsApproval ? '提交一条加入申请' : '加一个员工身份',
+          body: needsApproval
+            ? '会新建一个本机身份并用当前邀请码提交加入申请，然后自动切换到该身份，方便你审批。'
+            : '会新建一个本机身份并用当前邀请码加入，然后自动切换到该身份，方便你验证员工视角。',
           input: '张三',
           placeholder: '员工昵称',
-          confirmText: '加入并切换',
+          confirmText: needsApproval ? '提交申请' : '加入并切换',
           onConfirm: function (val) {
-            var r = C.joinByInvite(C.getCompany().inviteCode, (val || '张三').trim());
+            var name = (val || '张三').trim();
+            var r = needsApproval
+              ? C.applyToJoin(C.getCompany().inviteCode, name, '试用申请')
+              : C.joinByInvite(C.getCompany().inviteCode, name);
             if (!r.ok) { toast(r.message); return; }
-            toast('已加入并切换为员工身份');
+            toast(r.message);
             U.reloadWithIdentity();
           },
         });
+      };
+    }
+
+    // ---- 审批通过 / 驳回 ----
+    $body.querySelectorAll('[data-approve-join]').forEach(function (el) {
+      el.onclick = function (ev) {
+        ev.stopPropagation();
+        var id = el.getAttribute('data-approve-join');
+        var res = C.reviewJoin(id, true, C.currentUid());
+        toast(res.message);
+        if (res.ok) rerender();
+      };
+    });
+
+    $body.querySelectorAll('[data-reject-join]').forEach(function (el) {
+      el.onclick = function (ev) {
+        ev.stopPropagation();
+        var id = el.getAttribute('data-reject-join');
+        U.openSheet({
+          title: '驳回这条申请？',
+          body: '可以写一句原因，会展示给申请人。驳回后 10 分钟内对方不能再次申请。',
+          input: '',
+          placeholder: '驳回原因（可留空）',
+          confirmText: '驳回',
+          onConfirm: function (val) {
+            var res = C.reviewJoin(id, false, C.currentUid(), String(val || '').trim());
+            toast(res.message);
+            if (res.ok) rerender();
+          },
+        });
+      };
+    });
+
+    // ---- 撤回申请 ----
+    var cancelJoinBtn = document.getElementById('cancelJoinBtn');
+    if (cancelJoinBtn) {
+      cancelJoinBtn.onclick = function () {
+        var myJoin = C.myJoinStatus();
+        if (!myJoin || !myJoin.request) return;
+        var res = C.cancelJoin(myJoin.request.id, C.currentUid());
+        toast(res.message);
+        if (res.ok) rerender();
+      };
+    }
+
+    // ---- 审批开关 ----
+    var approvalToggle = document.getElementById('approvalToggle');
+    if (approvalToggle) {
+      approvalToggle.onchange = function () {
+        var res = C.setRequireApproval(approvalToggle.checked);
+        if (!res) {
+          toast('没有权限修改');
+          approvalToggle.checked = !approvalToggle.checked;
+          return;
+        }
+        toast(approvalToggle.checked ? '已开启：加入需要审批' : '已关闭：凭邀请码直接加入');
+        rerender();
       };
     }
 

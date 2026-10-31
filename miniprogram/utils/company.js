@@ -10,6 +10,7 @@
  */
 const P = require('../core/permissions');
 const rules = require('../core/rules');
+const joinRequest = require('./joinRequest');
 
 const K = {
   company: 'PC_COMPANY',
@@ -58,6 +59,8 @@ function ensureCompany(uid, nickname) {
     ownerUid: uid,
     inviteCode: P.makeInviteCode(String(uid) + '|' + now),
     createdAt: now,
+    // 加入是否需要管理员审批。真实团队默认 true，避免邀请码外流后无人把关
+    requireApproval: true,
     // 规则存在公司上，成员共享；个人不能改（见 permissions）
     ruleSet: rules.defaultRuleSet(),
   };
@@ -97,6 +100,100 @@ function refreshInviteCode() {
  * 用邀请码加入公司。
  * @returns {{ok, code, message, member}}
  */
+/**
+ * 提交加入申请（不立即成为成员，等管理员审批）。
+ * @returns {{ok, code, message, request}}
+ */
+function applyToJoin(rawCode, uid, nickname, reason) {
+  const code = P.normalizeInviteCode(rawCode);
+  if (!code) return { ok: false, code: 'BAD_FORMAT', message: '邀请码是 6 位字母数字' };
+
+  const company = getCompany();
+  if (!company) return { ok: false, code: 'NO_COMPANY', message: '本机还没有公司' };
+  if (company.inviteCode !== code) return { ok: false, code: 'WRONG_CODE', message: '邀请码不正确' };
+
+  // 已经是成员 → 不用申请
+  if (getMembers().some((m) => m.uid === uid && m.status === 'active')) {
+    return { ok: false, code: 'ALREADY_IN', message: '你已经是这家公司的成员' };
+  }
+
+  const r = joinRequest.submit({
+    companyId: company.id,
+    uid,
+    nickname: String(nickname || '申请人'),
+    reason: String(reason || ''),
+    inviteCode: code,
+  });
+  return r;
+}
+
+/** 我在这家公司的申请状态 */
+function myJoinStatus(uid) {
+  const company = getCompany();
+  if (!company) return null;
+  if (getMembers().some((m) => m.uid === uid && m.status === 'active')) {
+    return { status: 'approved', isMember: true };
+  }
+  const latest = joinRequest.myLatest(company.id, uid);
+  return latest ? { status: latest.status, request: latest, isMember: false } : null;
+}
+
+/** 待审批的申请（仅能审批的角色） */
+function listPendingJoins(operatorUid) {
+  if (!P.can(roleOf(operatorUid), 'member.invite')) return [];
+  const company = getCompany();
+  if (!company) return [];
+  return joinRequest.pendingList(company.id);
+}
+
+/**
+ * 审批一条加入申请。通过时才真正写入成员，角色固定 member。
+ * @returns {{ok, message, member?}}
+ */
+function reviewJoin(requestId, approve, operatorUid, note) {
+  const operatorRole = roleOf(operatorUid);
+  const r = joinRequest.review({
+    requestId,
+    approve,
+    operatorUid,
+    operatorRole,
+    note,
+  });
+  if (!r.ok) return r;
+
+  if (approve) {
+    const req = r.request;
+    // 纵深防御：再次确认不是成员，避免重复写入
+    if (getMembers().some((m) => m.uid === req.uid && m.status === 'active')) {
+      return { ok: false, message: '该用户已经是成员了' };
+    }
+    const members = getMembers();
+    const member = {
+      uid: req.uid,
+      nickname: req.nickname,
+      // 关键：角色**固定为 member**，不接受申请里传来的任何角色字段
+      role: 'member',
+      joinedAt: Date.now(),
+      status: 'active',
+      inviteCodeUsed: req.inviteCode,
+      approvedBy: operatorUid,
+    };
+    members.push(member);
+    writeJSON(K.members, members);
+    return { ok: true, message: '已通过，' + req.nickname + ' 已成为员工', member: member };
+  }
+
+  return { ok: true, message: '已驳回' };
+}
+
+/** 开关"加入需要审批" */
+function setRequireApproval(on) {
+  const c = getCompany();
+  if (!c) return null;
+  c.requireApproval = !!on;
+  return setCompany(c);
+}
+
 function joinByInvite(rawCode, uid, nickname) {
   const code = P.normalizeInviteCode(rawCode);
   if (!code) return { ok: false, code: 'BAD_FORMAT', message: '邀请码是 6 位字母数字，请检查后重试' };
@@ -111,6 +208,15 @@ function joinByInvite(rawCode, uid, nickname) {
   const exist = members.find((m) => m.uid === uid);
   if (exist) {
     return { ok: false, code: 'ALREADY_IN', message: '你已经在这家公司里了', member: exist };
+  }
+
+  // 需要审批时不允许绕过审批直接加入（防止调用方跳过流程）
+  if (company.requireApproval) {
+    return {
+      ok: false,
+      code: 'NEED_APPROVAL',
+      message: '这家公司需要管理员审批，请用「申请加入」',
+    };
   }
 
   const member = {
@@ -218,6 +324,11 @@ function transferOwnership(newOwnerUid, operatorUid) {
 
 module.exports = {
   K,
+  applyToJoin,
+  myJoinStatus,
+  listPendingJoins,
+  reviewJoin,
+  setRequireApproval,
   getCompany,
   setCompany,
   ensureCompany,

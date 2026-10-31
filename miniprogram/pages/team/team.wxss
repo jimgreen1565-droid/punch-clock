@@ -1,0 +1,238 @@
+/* ============ 公司与成员页 ============ */
+
+.container {
+  padding: 8rpx 28rpx 80rpx;
+}
+
+.section-label {
+  font-size: 24rpx;
+  color: var(--ink-3);
+  padding: 16rpx 6rpx 14rpx;
+  font-weight: 500;
+}
+
+/* 公司卡 */
+.company-card {
+  padding: 40rpx 30rpx;
+}
+
+.company-name {
+  font-size: 40rpx;
+  font-weight: 600;
+  letter-spacing: -0.5rpx;
+  line-height: 1.3;
+}
+
+.company-meta {
+  font-size: 23rpx;
+  color: var(--ink-3);
+  margin-top: 8rpx;
+}
+
+/* 邀请码 */
+.invite-code {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 42rpx;
+  font-weight: 600;
+  letter-spacing: 6rpx;
+  color: var(--brand);
+  background: var(--brand-soft);
+  border-radius: 16rpx;
+  padding: 26rpx;
+  text-align: center;
+  margin-bottom: 18rpx;
+}
+
+.invite-hint {
+  line-height: 1.7;
+}
+
+.inline-ops {
+  display: flex;
+  gap: 18rpx;
+  margin-top: 22rpx;
+}
+
+.inline-ops .btn-ghost {
+  flex: 1;
+  margin: 0;
+}
+
+.join-toggle {
+  margin-top: 12rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid var(--line);
+}
+
+/* 待审批 */
+.join-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.join-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  flex: 0 0 auto;
+  border-radius: 16rpx;
+  background: var(--brand-soft);
+  color: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.join-info {
+  flex: 1;
+}
+
+.join-name {
+  font-size: 29rpx;
+  font-weight: 600;
+}
+
+.join-sub {
+  font-size: 23rpx;
+  color: var(--ink-3);
+  margin-top: 4rpx;
+}
+
+.join-reason {
+  font-size: 24rpx;
+  color: var(--ink-2);
+  margin-top: 16rpx;
+  line-height: 1.6;
+}
+
+.join-ops {
+  display: flex;
+  gap: 18rpx;
+  margin-top: 22rpx;
+}
+
+.op {
+  flex: 1;
+  height: 72rpx;
+  line-height: 72rpx;
+  font-size: 26rpx;
+  border-radius: 14rpx;
+  border: none;
+  font-weight: 600;
+  margin: 0;
+  padding: 0;
+}
+
+.op::after {
+  border: none;
+}
+
+.op-ok {
+  background: var(--ok-soft);
+  color: #05704e;
+}
+
+.op-bad {
+  background: var(--bad-soft);
+  color: #a51b1b;
+}
+
+/* 成员行 */
+.card-tight {
+  padding-top: 6rpx;
+  padding-bottom: 6rpx;
+}
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+
+.member-row:last-child {
+  border-bottom: none;
+}
+
+.member-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  flex: 0 0 auto;
+  border-radius: 16rpx;
+  background: var(--brand-soft);
+  color: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.member-name {
+  font-size: 29rpx;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  flex-wrap: wrap;
+}
+
+.member-me {
+  font-size: 20rpx;
+  font-weight: 400;
+  color: var(--ink-3);
+  background: #f1f4fa;
+  border-radius: 8rpx;
+  padding: 2rpx 10rpx;
+}
+
+.member-sub {
+  font-size: 23rpx;
+  color: var(--ink-2);
+  margin-top: 4rpx;
+}
+
+/* 小按钮 */
+.btn-sm {
+  flex: 0 0 auto;
+  height: 60rpx;
+  line-height: 60rpx;
+  padding: 0 22rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid var(--line-2);
+  background: #fff;
+  color: var(--ink);
+  font-size: 24rpx;
+  font-weight: 500;
+  margin: 0;
+}
+
+.btn-sm::after {
+  border: none;
+}
+
+.btn-sm-danger {
+  color: var(--bad);
+  border-color: rgba(239, 68, 68, 0.32);
+}
+
+/* 只读提示（规则页用） */
+.readonly-note {
+  display: flex;
+  font-size: 24rpx;
+  line-height: 1.65;
+  color: var(--ink-2);
+  background: #f7f8fa;
+  border-left: 6rpx solid var(--warn);
+  border-radius: 12rpx;
+  padding: 22rpx 24rpx;
+  margin-bottom: 22rpx;
+}

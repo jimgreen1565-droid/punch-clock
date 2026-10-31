@@ -1,6 +1,8 @@
 const store = require('../../utils/store');
 const punch = require('../../utils/punch');
 const rules = require('../../core/rules');
+const company = require('../../utils/company');
+const permissions = require('../../core/permissions');
 
 Page({
   data: {
@@ -17,6 +19,8 @@ Page({
     workText: '0h0m',
     recordCount: 0,
     chainOk: true,
+    teamDesc: '',
+    roleName: '',
   },
 
   onShow() {
@@ -25,6 +29,8 @@ Page({
 
   refresh() {
     const boot = store.getBootInfo();
+    const c0 = company.ensureCompany(boot.uid, boot.nickname);
+    const role = company.roleOf(boot.uid);
     const rs = store.getRuleSet();
     const s = punch.todaySummary();
     const chain = store.verifyLocalChain();
@@ -44,6 +50,8 @@ Page({
       workText: fmtMin(s.workMinutes),
       recordCount: chain.count,
       chainOk: chain.ok,
+      teamDesc: (c0 ? c0.name : '') + ' · ' + permissions.roleName(role) + ' · ' + company.getMembers().filter(function(m){return m.status==='active';}).length + ' 人',
+      roleName: permissions.roleName(role),
     });
   },
 
@@ -60,6 +68,10 @@ Page({
         wx.showToast({ title: '已保存', icon: 'success' });
       },
     });
+  },
+
+  goTeam() {
+    wx.navigateTo({ url: '/pages/team/team' });
   },
 
   goRules() {
