@@ -114,6 +114,10 @@ function setEnv(env) {
 /* ------------------------------ 规则集 ------------------------------ */
 
 function getRuleSetRaw() {
+  // 规则存在公司上，所有成员共享同一份；单机模式回落本机配置以兼容旧数据
+  var company = null;
+  try { company = require('./company').getCompany(); } catch (e) { company = null; }
+  if (company && company.ruleSet) return company.ruleSet;
   return readJSON(K.ruleSet, rules.defaultRuleSet());
 }
 
@@ -129,7 +133,13 @@ function setRuleSet(patch) {
   if (patch && patch.wifi) next.wifi = Object.assign({}, cur.wifi || {}, patch.wifi);
   if (patch && patch.rotation) next.rotation = Object.assign({}, cur.rotation || {}, patch.rotation);
   next.updatedAt = Date.now();
-  writeJSON(K.ruleSet, rules.normalizeRuleSet(next));
+  var normalized = rules.normalizeRuleSet(next);
+  writeJSON(K.ruleSet, normalized);
+  try {
+    var comp = require('./company');
+    var company = comp.getCompany();
+    if (company) { company.ruleSet = normalized; comp.setCompany(company); }
+  } catch (e) { /* 单机模式忽略 */ }
   return getRuleSet();
 }
 

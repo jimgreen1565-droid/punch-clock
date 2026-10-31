@@ -29,6 +29,20 @@ async function loadConfig(companyId) {
     allowSkipGeo: true,
   };
   try {
+    // 优先读"公司"集合的规则（管理员设置的、全员共享的那一份）
+    const cR = await db.collection('pc_companies').where({ id: companyId }).limit(1).get();
+    if (cR.data && cR.data.length) {
+      const c = cR.data[0];
+      return {
+        companyId,
+        ruleSet: c.ruleSet || fallback.ruleSet,
+        geo: Object.assign({}, fallback.geo, (c.ruleSet && c.ruleSet.geo) || {}),
+        allowSkipGeo: true,
+      };
+    }
+  } catch (e) { /* 集合不存在时继续往下试旧配置 */ }
+
+  try {
     const r = await db.collection(COL_CFG).where({ companyId }).limit(1).get();
     if (r.data && r.data.length) {
       const doc = r.data[0];
@@ -112,8 +126,45 @@ exports.main = async (event) => {
     const companyId = (user && user.companyId) || 'default';
     const cfg = await loadConfig(companyId);
 
-    // 客户端可传 ruleSet 覆盖（单机/演示场景），服务端一律规整
-    const rs = C.normalizeRuleSet((payload && payload.ruleSet) || cfg.ruleSet);
+    /* ---------------------------------------------------------------
+       规则来源：**只信服务端的公司规则，绝不信客户端传的 ruleSet**。
+
+       上一版写法是 `C.normalizeRuleSet(payload.ruleSet || cfg.ruleSet)`，
+       这是真实的越权漏洞：员工改前端代码就能传一个
+       {start:'00:00', lateGrace:600} 的规则，迟到永远不判、围栏形同虚设。
+       现在改为：规则只从 pc_companies.ruleSet 读；payload.ruleSet 仅在
+       "公司还没配置规则"时作为初始值采纳一次，且之后以服务端为准。
+
+       单机/演示场景（没有公司、companyId='default'）允许客户端传规则，
+       因为那时本来就没有"管理他人"的需求。
+       --------------------------------------------------------------- */
+    let rs;
+    if (companyId === 'default' || !cfg.ruleSet) {
+      // 无公司归属：单机模式，允许客户端规则（只影响自己）
+      rs = C.normalizeRuleSet((payload && payload.ruleSet) || cfg.ruleSet);
+    } else {
+      // 有公司归属：以服务端规则为准，忽略 payload.ruleSet
+      rs = C.normalizeRuleSet(cfg.ruleSet);
+      if (payload && payload.ruleSet) {
+        // 如果客户端传了规则但不一致，记一笔审计（可能是越权尝试，也可能是版本不一致）
+        try {
+          const clientRs = C.normalizeRuleSet(payload.ruleSet);
+          if (clientRs.type !== rs.type ||
+              clientRs.startMin !== rs.startMin ||
+              clientRs.endMin !== rs.endMin ||
+              clientRs.geo.radius !== rs.geo.radius) {
+            await db.collection(COL_AUDIT).add({
+              data: {
+                openid: OPENID,
+                kind: 'punch.ruleMismatch',
+                at: serverNow,
+                note: '客户端规则与服务端不一致，已以服务端为准',
+              },
+            }).catch(() => null);
+          }
+        } catch (e) { /* 审计失败不影响打卡 */ }
+      }
+    }
 
     // 地理位置配置：优先客户端 ruleSet.geo，其次公司配置
     const geo = Object.assign({}, cfg.geo, { radius: rs.geo.radius || cfg.geo.radius, strict: rs.geo.strict });

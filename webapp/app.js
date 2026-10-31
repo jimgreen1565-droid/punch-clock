@@ -19,7 +19,11 @@
   var STORE_KEY = 'pc_web_v2';
   var WEEK = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
   var WEEK_SHORT = ['', '一', '二', '三', '四', '五', '六', '日'];
-  var PAGE_TITLES = { index: '考勤打卡', records: '打卡记录', stats: '考勤统计', me: '我的', rules: '考勤规则', admin: '审批与异常' };
+  var PAGE_TITLES = { index: '考勤打卡', records: '打卡记录', stats: '考勤统计', me: '我的', rules: '考勤规则', admin: '审批与异常', team: '公司与成员' };
+
+  /* 外部页面注册表（team.js 填入），以及"我的页"附加块 */
+  var EXTRA_PAGES = {};
+  var ME_EXTRA = [];
 
   var state = {
     page: 'index',
@@ -780,16 +784,24 @@
 
   function renderRules() {
     var r = rulesOf();
+    // 权限：没有 rule.edit 就进只读模式
+    var canEdit = window.PC_COMPANY ? PC_COMPANY.canDo('rule.edit') : true;
+    var meName = window.PC_COMPANY && PC_COMPANY.memberOf(PC_COMPANY.currentUid())
+      ? PC_COMPANY.memberOf(PC_COMPANY.currentUid()).nickname : '';
     var html = '<div class="page">';
 
     html += '<div class="card current"><div class="cur-top"><span class="cur-badge">' + R.ruleTypeName(r.type) +
       '</span><span class="cur-name">' + h(r.name) + '</span></div>';
     html += '<div class="cur-desc">' + h(R.describeRule(r)) + '</div></div>';
 
+    if (!canEdit) {
+      html += '<div class="readonly-note">考勤规则由管理员统一设置，你可以查看但不能修改。如需调整请联系管理员。</div>';
+    }
+
     html += '<div class="section-label">选择考勤规则</div><div class="options">';
     R.RULE_TYPES.forEach(function (t) {
       var active = t.id === r.type;
-      html += '<button class="option ' + (active ? 'active' : '') + '" data-type="' + t.id + '">';
+      html += '<button class="option ' + (active ? 'active' : '') + (canEdit ? '' : ' readonly') + '" data-type="' + t.id + '">';
       html += '<span class="opt-radio">' + (active ? '<span class="opt-radio-fill"></span>' : '') + '</span>';
       html += '<span class="opt-body"><span class="opt-head"><span class="opt-name">' + t.name + '</span><span class="opt-tag">' + t.tag + '</span></span>';
       html += '<span class="opt-desc">' + t.desc + '</span><span class="opt-detail">' + t.detail + '</span></span></button>';
@@ -797,7 +809,29 @@
     html += '</div>';
 
     html += '<div class="section-label">规则参数</div><div class="card">';
-    if (r.type === 'fixed') {
+    if (!canEdit) {
+      var ro = function (k, v) { return '<div class="row"><span class="k">' + k + '</span><span class="v dim">' + v + '</span></div>'; };
+      if (r.type === 'fixed') {
+        html += ro('上班时间', r.start) + ro('下班时间', r.end) + ro('工作日', R.weekdaysText(r.weekdays))
+          + ro('午休时段', r.breakStart ? r.breakStart + '-' + r.breakEnd : '未设置')
+          + ro('迟到宽限', r.lateGrace + ' 分钟') + ro('早退宽限', r.earlyGrace + ' 分钟');
+      } else if (r.type === 'flexible') {
+        html += ro('最晚上班', r.latestStart) + ro('最早下班', r.earliestEnd)
+          + ro('每日应满工时', R.fmtMinuteText(r.requiredMinutes)) + ro('工作日', R.weekdaysText(r.weekdays));
+      } else if (r.type === 'shift') {
+        html += ro('周期轮换', r.rotation.enabled ? '已开启' : '未开启');
+        if (r.rotation.enabled) {
+          html += ro('轮换周期', r.rotation.cycleDays + ' 天');
+          html += ro('班次顺序', r.rotation.slots.map(R.slotName(r)).join(' → '));
+        } else {
+          html += ro('上班时间', r.start) + ro('下班时间', r.end);
+        }
+        html += ro('工作日', R.weekdaysText(r.weekdays));
+      } else {
+        html += ro('每日目标工时', R.fmtMinuteText(r.dailyTargetMinutes)) + ro('判定方式', '不判迟到早退');
+      }
+      html += '</div>';
+    } else if (r.type === 'fixed') {
       html += rowTappable('上班时间', r.start, 'edit', 'start');
       html += rowTappable('下班时间', r.end, 'edit', 'end');
       html += rowTappable('工作日', R.weekdaysText(r.weekdays), 'weekdays');
@@ -830,6 +864,15 @@
 
     // 补卡规则（对齐飞书：是否允许 / 可补天数 / 每月次数）
     html += '<div class="section-label">补卡规则</div><div class="card">';
+    if (!canEdit) {
+      html += '<div class="row"><span class="k">允许补卡</span><span class="v dim">' + (r.patch.allow ? '允许' : '不允许') + '</span></div>';
+      if (r.patch.allow) {
+        html += '<div class="row"><span class="k">可补天数</span><span class="v dim">' + (r.patch.maxDays === 0 ? '仅当天' : '过去 ' + r.patch.maxDays + ' 天') + '</span></div>';
+        html += '<div class="row"><span class="k">每月上限</span><span class="v dim">' + (r.patch.maxPerMonth === 0 ? '不限' : r.patch.maxPerMonth + ' 次') + '</span></div>';
+      }
+      html += '<div class="muted" style="padding-top:var(--s2)">本月已提交 ' + usedPatchCount() + ' 次补卡申请</div>';
+      html += '</div>';
+    } else {
     html += rowTappable('允许补卡', r.patch.allow ? '允许' : '不允许', 'patchToggle');
     if (r.patch.allow) {
       html += rowTappable('可补天数', r.patch.maxDays === 0 ? '仅当天' : '过去 ' + r.patch.maxDays + ' 天', 'num', 'patchMaxDays');
@@ -837,18 +880,26 @@
     }
     html += '<div class="muted" style="padding-top:' + 'var(--s2)' + '">本月已提交 ' + usedPatchCount() + ' 次补卡申请</div>';
     html += '</div>';
+    }
 
     html += '<div class="section-label">打卡方式</div><div class="card">';
 ''
     if (r.geo.enabled) {
-      html += rowTappable('打卡点坐标', r.geo.lat.toFixed(5) + ', ' + r.geo.lng.toFixed(5), 'here');
-      html += rowTappable('范围半径', r.geo.radius + ' 米', 'num', 'radius');
-      html += rowTappable('范围外打卡', r.geo.strict ? '禁止' : '允许（填外勤原因）', 'strict');
-      html += rowTappable('位置校验', r.geo.enabled ? '已开启（点击关闭）' : '已关闭（点击开启）', 'geoToggle');
+      if (canEdit) {
+        html += rowTappable('打卡点坐标', r.geo.lat.toFixed(5) + ', ' + r.geo.lng.toFixed(5), 'here');
+        html += rowTappable('范围半径', r.geo.radius + ' 米', 'num', 'radius');
+        html += rowTappable('范围外打卡', r.geo.strict ? '禁止' : '允许（填外勤原因）', 'strict');
+        html += rowTappable('位置校验', r.geo.enabled ? '已开启（点击关闭）' : '已关闭（点击开启）', 'geoToggle');
+      } else {
+        html += '<div class="row"><span class="k">打卡点坐标</span><span class="v dim">' + r.geo.lat.toFixed(5) + ', ' + r.geo.lng.toFixed(5) + '</span></div>';
+        html += '<div class="row"><span class="k">范围半径</span><span class="v dim">' + r.geo.radius + ' 米</span></div>';
+        html += '<div class="row"><span class="k">范围外打卡</span><span class="v dim">' + (r.geo.strict ? '禁止' : '允许（填外勤原因）') + '</span></div>';
+      }
     }
     html += '<div class="muted" style="padding:8px 0 0">' + (r.geo.enabled ? '严格模式：范围外无法打卡；宽松模式：范围外可打卡并填外勤原因' : '已关闭位置校验，任何位置都能打卡') + '</div>';
     html += '</div>';
 
+    if (canEdit) {
     html += '<div class="section-label">规则模板</div><div class="card">';
     if (!db.presets.length) html += '<div class="muted" style="padding:4px 0 10px">还没有保存的模板。保存后可一键切换。</div>';
     db.presets.forEach(function (p) {
@@ -858,15 +909,22 @@
       html += '<button class="dt-link" style="color:#ef4444" data-delpreset="' + h(p.id) + '">删</button></div>';
     });
     html += '<button class="btn" id="savePreset">保存当前规则为模板</button></div>';
+    }
 
     html += '<div class="muted" style="text-align:center;font-size:11px;margin-top:12px;padding:0 20px;line-height:1.85">' +
-      '切换规则后今天的判定按新规则重算，但已产生的打卡记录不会被改写（哈希不变）</div>';
+      (canEdit
+        ? '切换规则后今天的判定按新规则重算，但已产生的打卡记录不会被改写（哈希不变）'
+        : '规则由管理员统一设置，所有成员看到的是同一份') + '</div>';
     html += '</div>';
 
     $body.innerHTML = html;
 
     $body.querySelectorAll('[data-type]').forEach(function (el) {
       el.onclick = function () {
+        if (!canEdit) {
+          toast('考勤规则由管理员设置，你只能查看');
+          return;
+        }
         var t = el.getAttribute('data-type');
         if (t === rulesOf().type) return;
         var name = R.ruleTypeName(t);
@@ -876,6 +934,7 @@
           confirmText: '切换',
           onConfirm: function () {
             db.ruleSet = R.normalizeRuleSet(Object.assign({}, db.ruleSet, { type: t }));
+            if (window.PC_COMPANY) PC_COMPANY.setCompanyRuleSet(db.ruleSet);
             save();
             state.geo = { status: 'idle', ok: false, dist: null, acc: null, error: '' };
             toast('已切换为 ' + name);
@@ -945,6 +1004,11 @@
   }
 
   function patchRule(patch) {
+    // 统一门禁：没有 rule.edit 直接拒绝（不只是隐藏入口）
+    if (window.PC_COMPANY && !PC_COMPANY.canDo('rule.edit')) {
+      toast('考勤规则由管理员设置，你只能查看');
+      return;
+    }
     db.ruleSet = R.normalizeRuleSet(Object.assign({}, db.ruleSet, patch));
     save();
     renderRules();
@@ -1644,6 +1708,16 @@
     html += '</div>';
 
     html += '<div class="section-label">考勤规则</div><div class="menu">';
+    if (window.PC_COMPANY && window.PC_COMPANY.getCompany()) {
+      var _c = window.PC_COMPANY.getCompany();
+      var _rl = window.PC_COMPANY.roleOf();
+      if (_c && _rl) {
+        html += '<button class="menu-item" data-go="team"><span class="mi-left"><span class="mi-title">公司与成员</span>' +
+          '<span class="mi-desc">' + h(_c.name) + ' · ' + h(window.PC_COMPANY.roleName(_rl)) +
+          ' · ' + window.PC_COMPANY.getMembers().length + ' 人</span></span>' +
+          '<span class="mi-right"><span class="mi-badge">' + h(window.PC_COMPANY.roleName(_rl)) + '</span><span class="mi-arrow">›</span></span></button>';
+      }
+    }
     html += '<button class="menu-item" data-go="rules"><span class="mi-left"><span class="mi-title">考勤规则</span>' +
       '<span class="mi-desc">' + h(R.describeRule(r)) + '</span></span>' +
       '<span class="mi-right"><span class="mi-badge">' + R.ruleTypeName(r.type) + '</span><span class="mi-arrow">›</span></span></button>';
@@ -1667,9 +1741,18 @@
       '<div class="about-line">参考钉钉考勤模型：固定班制 / 弹性工作制 / 排班制 / 自由工时</div></div>';
     html += '</div>';
 
+    if (ME_EXTRA.length) {
+      var _x = ME_EXTRA.map(function (d) { return d.html ? d.html() : ''; }).join('');
+      if (_x) html = html.replace('<div class="section-label">考勤规则</div>', _x + '<div class="section-label">考勤规则</div>');
+    }
+
     $body.innerHTML = html;
 
     bindGo();
+
+    if (ME_EXTRA.length) {
+      ME_EXTRA.forEach(function (d) { if (d.bind) d.bind($body, toast); });
+    }
 
     document.getElementById('editName').onclick = function () {
       openSheet({
@@ -1857,6 +1940,12 @@
     else if (state.page === 'stats') renderStats();
     else if (state.page === 'rules') renderRules();
     else if (state.page === 'admin') renderAdmin();
+    else if (EXTRA_PAGES[state.page]) {
+      var pg = EXTRA_PAGES[state.page];
+      $body.innerHTML = pg.render();
+      if (pg.bind) pg.bind($body, render, toast);
+      bindGo();
+    }
     else renderMe();
 
     $body.scrollTop = 0;
@@ -1901,6 +1990,12 @@
   function boot() {
     applyBgVariant();
     applyPalette();
+    // 初始化公司：首次打开自动建一家，自己成为创建者
+    if (window.PC_COMPANY) {
+      PC_COMPANY.ensureCompany(db.boot.nickname);
+      var c0 = PC_COMPANY.getCompany();
+      if (c0 && c0.ruleSet) db.ruleSet = c0.ruleSet;
+    }
     initTabIcons();
     render();
     var r = rulesOf();
@@ -1920,7 +2015,13 @@
     db: function () { return db; },
     setGeo: function (o) { state.geo = Object.assign({ status: 'ok', ok: true, dist: 100, acc: 20, error: '' }, o || {}); render(); },
     punch: function (o) { writePunch(o); },
-    rule: function (t) { db.ruleSet = R.normalizeRuleSet(Object.assign({}, db.ruleSet, { type: t })); save(); render(); },
+    rule: function (t) { db.ruleSet = R.normalizeRuleSet(Object.assign({}, db.ruleSet, { type: t })); if (window.PC_COMPANY) PC_COMPANY.setCompanyRuleSet(db.ruleSet); save(); render(); },
+    registerPage: function (key, def) { EXTRA_PAGES[key] = def; if (def.title) PAGE_TITLES[key] = def.title; },
+    registerMeExtra: function (def) { ME_EXTRA.push(def); },
+    openSheet: openSheet,
+    toast: toast,
+    reloadWithIdentity: function () { location.reload(); },
+    currentPage: function () { return state.page; },
   };
 
   boot();

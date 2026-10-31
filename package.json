@@ -17,7 +17,9 @@
     "sync:shared": "node scripts/sync-shared.js",
     "test:web": "node tests/web.test.js",
     "shoot:web": "node scripts/shoot-web.js",
-    "build:web": "node scripts/build-preview.js"
+    "build:web": "node scripts/build-preview.js",
+    "test:perm": "node tests/permissions.test.js",
+    "test:team": "node scripts/test-permissions.js"
   },
   "keywords": [
     "weixin",

@@ -1,0 +1,9 @@
+{
+  "name": "company",
+  "version": "1.0.0",
+  "description": "公司与权限（服务端判权：改规则/邀请/改角色/移除/转让）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
