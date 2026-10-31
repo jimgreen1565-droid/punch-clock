@@ -1318,7 +1318,7 @@
       var open = state.expanded[dayKey];
       var recs = db.records.filter(function (x) { return x.dateKey === dayKey; });
 
-      daysHtml += '<div class="day"><div class="day-main" data-day="' + dayKey + '"><div class="day-left">';
+      daysHtml += '<div class="day' + (dayKey === todayKey ? ' is-today' : '') + '"><div class="day-main" data-day="' + dayKey + '"><div class="day-left">';
       daysHtml += '<div class="day-date"><span class="dd-num">' + R.pad2(j) + '</span><span class="dd-week">' +
         WEEK[R.partsOf(R.msOfDayMinute(dayKey, 720)).weekday] + '</span></div>';
       daysHtml += '<div class="day-tags"><span class="tag tag-' + meta.tone + '">' + meta.label + '</span>';
@@ -1865,8 +1865,18 @@
     return n;
   }
 
+  /** 配色方案：?palette=blue|indigo|teal|amber */
+  function applyPalette() {
+    var m = location.search.match(/palette=([a-z]+)/);
+    var p = m ? m[1] : 'blue';
+    if (['blue', 'indigo', 'teal', 'amber'].indexOf(p) < 0) p = 'blue';
+    document.body.setAttribute('data-palette', p);
+    return p;
+  }
+
   function boot() {
     applyBgVariant();
+    applyPalette();
     initTabIcons();
     render();
     var r = rulesOf();

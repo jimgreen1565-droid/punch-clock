@@ -1,0 +1,166 @@
+/* ==========================================================================
+   配色方案（webapp/palette.css）
+   --------------------------------------------------------------------------
+   用户反馈「配色太单调」。诊断出的三个具体原因：
+
+     1. 只有 1 个蓝 + 灰阶，缺少"中间层"——按钮、链接、选中态全是一个色，
+        没有深浅对比，眼睛找不到"强调"。
+     2. 状态色只有小圆点。31 天列表里全是绿点，扫不出"哪天迟到、哪天缺卡"。
+        小圆点在单个列表是有效的，但在一份月记录里是无效的（信息量没被编码）。
+     3. 页面纯白到底，没有任何区域比别的区域更亮或更暗，所以"平"。
+
+   这一层不覆盖原 token，只在其上叠加可选主题；未指定时保持蓝色系。
+   ========================================================================== */
+
+/* ---- 四套主题（?palette=blue|indigo|teal|amber） ---- */
+
+body[data-palette="indigo"] {
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-soft: #eef2ff;
+}
+
+body[data-palette="teal"] {
+  --primary: #0f9d8f;
+  --primary-hover: #0d857a;
+  --primary-soft: #ecfdf9;
+}
+
+body[data-palette="amber"] {
+  --primary: #c2740c;
+  --primary-hover: #a35f08;
+  --primary-soft: #fffaeb;
+}
+
+/* ==========================================================================
+   状态色：扩到 6 个语义，并且「异常类」用小浅底 + 同色字
+   --------------------------------------------------------------------------
+   正常日保持最轻（只有圆点），异常类才配浅底。
+   这样扫读一份月记录时，眼睛会直接跳到异常日，而不是被满屏绿点淹没。
+   ========================================================================== */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--text-2);
+}
+
+.tag::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+/* 正常：最轻，只留圆点 */
+.tag-ok {
+  color: var(--success);
+}
+
+/* 异常类：浅底 + 同色字，扫读时能跳出来 */
+.tag-warn {
+  color: #92500a;
+  background: rgba(217, 119, 6, 0.12);
+  padding: 2px 7px 2px 6px;
+  border-radius: var(--r-sm);
+}
+
+.tag-bad {
+  color: #a51b1b;
+  background: rgba(220, 38, 38, 0.1);
+  padding: 2px 7px 2px 6px;
+  border-radius: var(--r-sm);
+}
+
+/* 加班/外勤：用主色系，和"问题"区分开（它们不是异常） */
+.tag-brand,
+.tag-accent {
+  color: var(--primary);
+  background: var(--primary-soft);
+  padding: 2px 7px 2px 6px;
+  border-radius: var(--r-sm);
+}
+
+/* 迟到/早退的琥珀色不能和 amber 主色撞，所以 amber 主题下把 warn 推深一档 */
+body[data-palette="amber"] .tag-warn {
+  color: #8a3a0a;
+  background: rgba(194, 116, 12, 0.14);
+}
+
+/* teal 主题下"正常"的绿点会和主色接近，用更深一档的绿拉开 */
+body[data-palette="teal"] .tag-ok {
+  color: #15803d;
+}
+
+.tag-mute { color: var(--text-3); }
+.tag-pill {
+  padding: 2px 8px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text-2);
+}
+.tag-pill::before { display: none; }
+
+/* ==========================================================================
+   页面层次：让"平"的页面有亮暗区分
+   ========================================================================== */
+
+/* 顶部品牌浅色渐变：页面上半部分有"光从上面来"的层次，往下收敛到纯白 */
+.shell {
+  background-color: var(--bg);
+  background-image: linear-gradient(180deg, var(--primary-soft) 0px, #ffffff 200px);
+  background-repeat: no-repeat;
+  background-size: 100% 200px;
+}
+
+/* 记录列表里的"今天"：主色浅底 + 左侧主色竖条，一眼找到今天 */
+.day.is-today {
+  background: var(--primary-soft);
+  border-color: transparent;
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+/* 打卡按钮：一圈极淡外环 + 一层有方向的主色投影，让它"浮起来"而不是贴纸 */
+.punch-btn {
+  box-shadow:
+    0 0 0 1px rgba(37, 99, 235, 0.05),
+    0 10px 28px -10px var(--primary);
+}
+
+/* 月历：有记录的正常日给极淡主色底，让整月看起来"被填满"而不是留白一片 */
+.cell.heat-ok {
+  background: var(--primary-soft);
+}
+
+/* 指标区：数字用主色，和灰色说明拉开 */
+.m-val {
+  color: var(--text);
+}
+
+/* 首页"最近一次/距打卡点"这类关键读数用主色，增加色彩层次 */
+.geo-v {
+  color: var(--text);
+}
+
+/* 三个月度大数字（出勤/异常/工时/加班）里，把"加班"这格用主色，
+   让四格里有一格是彩色的，不至于整排灰 */
+.sum-val.accent {
+  color: var(--primary);
+}
+
+/* 统计页出勤率大数字已用主色，这里让"应出勤/实际打卡"的数值略深 */
+.hs-v {
+  color: var(--text);
+}
+
+/* tabbar 选中项：图标 + 文字都用主色，且给一个小圆点指示 */
+.tab.active .ti {
+  color: var(--primary);
+}
