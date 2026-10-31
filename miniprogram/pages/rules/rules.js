@@ -13,6 +13,9 @@ Page({
     requiredText: '',
     targetText: '',
     slotText: '',
+    patchDaysText: '',
+    patchQuotaText: '',
+    patchUsed: 0,
     presets: [],
   },
 
@@ -37,6 +40,9 @@ Page({
       requiredText: rules.fmtMinuteText(rs.requiredMinutes),
       targetText: rules.fmtMinuteText(rs.dailyTargetMinutes),
       slotText: rs.rotation.slots.map(rules.slotName(rs)).join(' → '),
+      patchDaysText: rs.patch.maxDays === 0 ? '仅当天' : '过去 ' + rs.patch.maxDays + ' 天',
+      patchQuotaText: rs.patch.maxPerMonth === 0 ? '不限' : rs.patch.maxPerMonth + ' 次',
+      patchUsed: this.countPatchUsed(),
       presets,
     });
   },
@@ -281,6 +287,58 @@ Page({
             this.refresh();
           },
         });
+      },
+    });
+  },
+
+  /* ---------- 补卡规则 ---------- */
+
+  countPatchUsed() {
+    const month = rules.monthKeyOf(Date.now());
+    return store.getPatches().filter((p) => String(p.dateKey || '').slice(0, 7) === month && p.status !== 'rejected').length;
+  },
+
+  togglePatch() {
+    const cur = this.data.ruleSet.patch.allow;
+    store.setRuleSet({ patch: { allow: !cur } });
+    this.refresh();
+    wx.showToast({ title: cur ? '已关闭补卡' : '已允许补卡', icon: 'none' });
+  },
+
+  editPatchDays() {
+    const cur = this.data.ruleSet.patch.maxDays;
+    wx.showModal({
+      title: '可补天数（0 = 仅当天）',
+      editable: true,
+      content: String(cur),
+      success: (r) => {
+        if (!r.confirm) return;
+        const v = Number(r.content);
+        if (!isFinite(v) || v < 0 || v > 180) {
+          wx.showToast({ title: '请输入 0-180', icon: 'none' });
+          return;
+        }
+        store.setRuleSet({ patch: { maxDays: Math.round(v) } });
+        this.refresh();
+      },
+    });
+  },
+
+  editPatchQuota() {
+    const cur = this.data.ruleSet.patch.maxPerMonth;
+    wx.showModal({
+      title: '每月补卡上限（0 = 不限）',
+      editable: true,
+      content: String(cur),
+      success: (r) => {
+        if (!r.confirm) return;
+        const v = Number(r.content);
+        if (!isFinite(v) || v < 0 || v > 999) {
+          wx.showToast({ title: '请输入 0-999', icon: 'none' });
+          return;
+        }
+        store.setRuleSet({ patch: { maxPerMonth: Math.round(v) } });
+        this.refresh();
       },
     });
   },

@@ -20,13 +20,12 @@
     <h1 class="tb-title" id="navTitle">考勤打卡</h1>
     <div class="tb-actions"><button class="tb-btn" id="tbMore" aria-label="更多">⋯</button></div>
   </header>
-
   <main class="content" id="body"></main>
 
   <nav class="tabbar" id="tabbar">
-    <button class="tab active" data-page="index"><span class="ti">◷</span><span class="tl">打卡</span></button>
-    <button class="tab" data-page="records"><span class="ti">☰</span><span class="tl">记录</span></button>
-    <button class="tab" data-page="me"><span class="ti">◯</span><span class="tl">我的</span></button>
+    <button class="tab active" data-page="index" aria-label="打卡"><span class="ti" data-icon="clock"></span><span class="tl">打卡</span></button>
+    <button class="tab" data-page="records" aria-label="记录"><span class="ti" data-icon="list"></span><span class="tl">记录</span></button>
+    <button class="tab" data-page="me" aria-label="我的"><span class="ti" data-icon="user"></span><span class="tl">我的</span></button>
   </nav>
 </div>
 
@@ -43,6 +42,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="core-bundle.js"></script>
+<script src="icons.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

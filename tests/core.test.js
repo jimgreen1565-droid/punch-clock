@@ -351,3 +351,50 @@ test('statusMeta 覆盖所有状态', () => {
     assert.ok(m.tone, s + ' should have tone');
   });
 });
+
+/* --------------------------- 补卡规则（飞书口径） --------------------------- */
+
+test('补卡规则：默认允许，可补 7 天，每月 3 次', () => {
+  const rs = rules.normalizeRuleSet({});
+  assert.equal(rs.patch.allow, true);
+  assert.equal(rs.patch.maxDays, 7);
+  assert.equal(rs.patch.maxPerMonth, 3);
+});
+
+test('补卡规则：当天可补，超出天数被拒', () => {
+  const rs = rules.normalizeRuleSet({ patch: { maxDays: 7 } });
+  const today = '2026-10-31';
+  assert.equal(rules.canApplyPatch({ ruleSet: rs, todayKey: today, targetDayKey: today, alreadyCount: 0 }).ok, true);
+  const eight = rules.canApplyPatch({ ruleSet: rs, todayKey: today, targetDayKey: '2026-10-23', alreadyCount: 0 });
+  assert.equal(eight.ok, false);
+  assert.equal(eight.reason, 'too-old');
+});
+
+test('补卡规则：maxDays=0 表示只能补当天', () => {
+  const rs = rules.normalizeRuleSet({ patch: { maxDays: 0 } });
+  const r = rules.canApplyPatch({ ruleSet: rs, todayKey: '2026-10-31', targetDayKey: '2026-10-30', alreadyCount: 0 });
+  assert.equal(r.ok, false);
+  assert.equal(r.message, '只能补当天的卡');
+});
+
+test('补卡规则：每月额度用完被拒，被驳回的不占额度由调用方负责', () => {
+  const rs = rules.normalizeRuleSet({ patch: { maxPerMonth: 3 } });
+  assert.equal(rules.canApplyPatch({ ruleSet: rs, todayKey: '2026-10-31', targetDayKey: '2026-10-30', alreadyCount: 2 }).ok, true);
+  const over = rules.canApplyPatch({ ruleSet: rs, todayKey: '2026-10-31', targetDayKey: '2026-10-30', alreadyCount: 3 });
+  assert.equal(over.ok, false);
+  assert.equal(over.reason, 'quota');
+});
+
+test('补卡规则：allow=false 一律拒绝', () => {
+  const rs = rules.normalizeRuleSet({ patch: { allow: false } });
+  const r = rules.canApplyPatch({ ruleSet: rs, todayKey: '2026-10-31', targetDayKey: '2026-10-31', alreadyCount: 0 });
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'disabled');
+});
+
+test('补卡规则：不允许补未来日期', () => {
+  const rs = rules.normalizeRuleSet({});
+  const r = rules.canApplyPatch({ ruleSet: rs, todayKey: '2026-10-31', targetDayKey: '2026-11-01', alreadyCount: 0 });
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'future');
+});

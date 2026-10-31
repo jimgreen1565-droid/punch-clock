@@ -194,6 +194,8 @@ function defaultRuleSet() {
     geo: { enabled: true, strict: true, radius: 300, lat: 39.908823, lng: 116.39747, name: '公司' },
     wifi: { enabled: false, ssids: [] },
     allowOutsideNote: true, // 范围外可打卡但填备注（外勤）
+    patch: { allow: true, maxDays: 7, maxPerMonth: 3 },
+    restDayRequiresApply: false,
   };
 }
 
@@ -300,8 +302,45 @@ function normalizeRuleSet(raw) {
       enabled: !!(src.wifi && src.wifi.enabled),
       ssids: (src.wifi && Array.isArray(src.wifi.ssids) ? src.wifi.ssids : []).map(String).filter(Boolean).slice(0, 10),
     },
+    // 补卡规则（对齐飞书「管理员设置补卡规则」）
+    //   allow: 是否允许申请补卡
+    //   maxDays: 只能补过去 N 天（0 = 只能补当天）
+    //   maxPerMonth: 每人每月最多补 N 次（0 = 不限）
+    patch: {
+      allow: src.patch && src.patch.allow === false ? false : true,
+      maxDays: pickNum(src.patch, 'maxDays', 7, 0, 180),
+      maxPerMonth: pickNum(src.patch, 'maxPerMonth', 3, 0, 999),
+    },
+    // 休息日打卡是否需要先提交加班/外出/出差申请（飞书有此开关）
+    restDayRequiresApply: !!(src.restDayRequiresApply),
     allowOutsideNote: src.allowOutsideNote !== false,
   };
+}
+
+/**
+ * 校验一次补卡申请是否合规（飞书规则口径）。
+ * @param {object} args {ruleSet, targetDayKey, todayKey, alreadyCount}
+ * @returns {{ok, reason}}
+ */
+function canApplyPatch(args) {
+  const rs = normalizeRuleSet(args.ruleSet);
+  if (!rs.patch.allow) return { ok: false, reason: 'disabled', message: '当前规则不允许补卡' };
+
+  const days = dayDiff(args.todayKey, args.targetDayKey);
+  if (days < 0) return { ok: false, reason: 'future', message: '不能补未来的日期' };
+  if (days > rs.patch.maxDays) {
+    return {
+      ok: false,
+      reason: 'too-old',
+      message: rs.patch.maxDays === 0
+        ? '只能补当天的卡'
+        : '只能补 ' + rs.patch.maxDays + ' 天内的卡',
+    };
+  }
+  if (rs.patch.maxPerMonth > 0 && (args.alreadyCount || 0) >= rs.patch.maxPerMonth) {
+    return { ok: false, reason: 'quota', message: '本月补卡次数已用完（' + rs.patch.maxPerMonth + ' 次）' };
+  }
+  return { ok: true, reason: 'ok', message: '' };
 }
 
 /** 规则类型的中文名 */
@@ -706,6 +745,7 @@ module.exports = {
   resolveShiftDay,
   classifyPunch,
   pairDay,
+  canApplyPatch,
   statusMeta,
   plannedDays,
 };

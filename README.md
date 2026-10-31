@@ -56,6 +56,7 @@
 | **打满后不误写** | 上下班齐了按钮变「已完成」，再点弹确认，只有明确「补一条」才写入 | `utils/punch.js`、`pages/index` |
 | **定位失败不阻断** | 拿不到定位仍可打卡，标「未定位待审核」并要备注 | `utils/punch.js` |
 | **外勤打卡** | 范围外 + 必填原因 → 标记待审核，不是悄悄放行 | 同上 |
+| **补卡规则** | 是否允许 / 可补天数 / 每月次数，按飞书口径校验后才允许提交 | `core/rules.js: canApplyPatch` |
 | **补卡审批** | 审批通过生成 `source=patch` 的新记录接入链尾，不改历史 | `cloudfunctions/admin` |
 | **角色判权** | `admin`/`manager` 判定全在云函数里，前端改不了 | 同上 |
 
@@ -86,7 +87,7 @@ punch-clock/
 │   ├── sync-shared.js / make-icons.mjs
 │   ├── shoot.js / shoot-web.js       #   真实 Chrome 截图
 │   └── deploy 相关见 .github/workflows/deploy.yml
-├── tests/                            # 105 个用例
+├── tests/                            # 111 个用例
 └── docs/
 ```
 
@@ -99,7 +100,7 @@ npm run check       # = 静态校验 + 全部测试（含真实浏览器跑 Web 
 ```
 ✔ 静态校验通过（21 个 js，6 个页面）
 
-core.test.js                29 pass  规则引擎 / SHA-256 与 node crypto 对拍
+core.test.js                35 pass  规则引擎 / 补卡规则 / SHA-256 对拍
 hash-consistency.test.js     7 pass  ★ 客户端与云端哈希必须逐字段一致
 server-rules.test.js        13 pass  服务端独立复算 + 客户端-服务端交叉比对
 rule-compare.test.js         8 pass  ★ 同一组打卡行为 × 四种规则 的判定差异
@@ -136,6 +137,26 @@ web.test.js                 10 pass  ★ 真实 Chrome + 真实定位跑网页�
 - [部署与接入.md](docs/部署与接入.md) — 云开发全流程、6 个集合索引、权限、7 类常见报错
 - [设计说明.md](docs/设计说明.md) — 架构取舍（哈希链、双模式、时区、浅色 UI）
 - [数据格式.md](docs/数据格式.md) — 字段字典 + 可被 Python 独立复现的哈希算法
+
+## v3：视觉与规则再优化（2026-10-31）
+
+按 `web-design-standards` + `frontend-design` 重做，并对照钉钉/飞书补规则。
+
+**视觉**（详见 [设计计划.md](docs/设计计划.md)）：
+- 删掉紫色渐变打卡按钮、`blur(40px)` 光晕、24px 大圆角、卡片投影、彩色 tag 底
+- 改为：单一 `#2563EB` 实心圆按钮、12px 圆角 + 1px 边框、状态只做 6px 圆点
+- 图标从 emoji 换成统一 1.5px 描边 SVG（`webapp/icons.js`）
+- 删掉重复信息（同一时间在按钮和指标里各报一次）、休息日不再显示空时间轴
+- 统计日历加极浅热力底，一眼看出"哪一周崩了"
+
+**规则**（对齐飞书）：
+- 新增补卡规则：是否允许 / 可补天数 / 每月上限，提交前校验（`canApplyPatch`）
+- 出勤构成按"出勤结果"而非"主状态"归类（加班日算正常出勤，单列"其中 X 天有加班"）
+
+**修掉的逻辑 bug**：
+- 已上班后"今日工时"永远显示 0m（未随计时累加）→ 改为计时中
+- 加班日被排除在"正常出勤"之外，构成各项加不到总数
+- 工作日被改成"每天"时"应出勤"变成 31 天 → 截图脚本与统计口径修正
 
 ## v2 相对 v1 的变化
 

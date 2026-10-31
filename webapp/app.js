@@ -363,20 +363,25 @@
       var left2 = Math.max(0, r.dailyTargetMinutes - span);
       return { text: left2 > 0 ? fmtMin(left2) : '已达目标', key: '目标工时', tone: left2 > 0 ? '' : 'tone-ok' };
     }
+    // 固定/排班：中间这格放"今天应满多少工时"（计划事实）。
+    // 倒计时只留在打卡按钮下方一处，避免同一信息在页面上出现两次。
     if (s.isRest) return { text: '—', key: '休息日', tone: '' };
-    if (s.day.outAt) return { text: '已打卡', key: '应满工时', tone: 'tone-ok' };
-    if (s.day.inAt) {
-      var left3 = R.diffMinutes(s.day.expectOutAt || 0, now);
-      return left3 > 0
-        ? { text: fmtMin(left3), key: '应满工时', tone: '' }
-        : { text: '待下班', key: '应满工时', tone: 'tone-warn' };
+    if (s.day.outAt && s.day.workMinutes > 0) {
+      return { text: fmtMin(s.workMinutes), key: '实际工时', tone: s.day.workMinutes >= s.planMinutes - (r.breakMinutes || 0) ? 'tone-ok' : 'tone-warn' };
     }
     return { text: fmtMin(s.planMinutes - (r.breakMinutes || 0)), key: '应满工时', tone: '' };
   }
 
   function workInfo(s) {
+    // 已上班未下班时，工时应随当前时间实时累加，不能永远显示 0m
     if (s.day.inAt && s.day.outAt) return { text: fmtMin(s.day.workMinutes), key: '今日工时' };
-    if (s.day.inAt) return { text: fmtMin(R.diffMinutes(s.now, s.day.inAt)), key: '已上' };
+    if (s.day.inAt) {
+      var span = Math.max(0, R.diffMinutes(s.now, s.day.inAt) - (s.ruleSet.breakMinutes || 0));
+      // 还没跨过午休就不要扣（否则上午会显示负/异常值）
+      var passBreak = s.ruleSet.breakEndMin !== null && s.now > R.msOfDayMinute(s.dayKey, s.ruleSet.breakEndMin);
+      if (!passBreak) span = Math.max(0, R.diffMinutes(s.now, s.day.inAt));
+      return { text: fmtMin(Math.max(0, span)), key: '已上（计时中）' };
+    }
     return { text: '—', key: '今日工时' };
   }
 
@@ -401,29 +406,30 @@
     if (!s.day.inAt) return '班次 ' + (s.dayInfo.shift ? s.dayInfo.shift.start + '-' + s.dayInfo.shift.end : '—');
     if (s.day.outAt) return '今日已完成打卡';
     var left2 = R.diffMinutes(s.day.expectOutAt || 0, now);
-    return left2 > 0 ? '已上班 · 还需在岗 ' + fmtMin(left2) : '已过下班时间，记得打下班卡';
+    // 与按钮下方倒计时重复，这里只说状态，不再报时间
+    return left2 > 0 ? '已上班，下班记得打卡' : '已过下班时间，打完卡即可';
   }
 
   function geoBlock(r) {
     if (!r.geo.enabled) {
-      return '<div class="card geo-card"><div class="geo-head"><div><span class="geo-name">' + h(r.geo.name) +
-        '</span><span class="geo-sub">已关闭</span></div><div class="geo-state ok"><span class="geo-dot"></span><span>无需定位</span></div></div></div>';
+      return '<div class="card geo-card"><div class="geo-head"><div><span class="geo-name">' + PC_ICONS.pin(14) + ' ' + h(r.geo.name) +
+        '</span><span class="geo-sub">已关闭</span></div><div class="geo-state idle"><span class="geo-dot"></span><span>无需定位</span></div></div></div>';
     }
     var g = state.geo;
     var stateText, stateCls;
-    if (g.status === 'loading') { stateText = '定位中…'; stateCls = 'ok'; }
-    else if (g.status === 'disabled') { stateText = '无需定位'; stateCls = 'ok'; }
+    if (g.status === 'loading') { stateText = '定位中…'; stateCls = 'idle'; }
+    else if (g.status === 'disabled') { stateText = '无需定位'; stateCls = 'idle'; }
     else if (g.status === 'ok' || g.status === 'done') {
       stateText = g.ok ? '已进入范围' : (g.reason === 'low-accuracy' ? '精度不足' : '未在范围');
       stateCls = g.ok ? 'ok' : 'bad';
     } else if (g.status === 'insecure') { stateText = '需要 HTTPS'; stateCls = 'bad'; }
     else if (g.status !== 'idle') { stateText = '定位未就绪'; stateCls = 'bad'; }
-    else { stateText = '未校验'; stateCls = ''; }
+    else { stateText = '未校验'; stateCls = 'idle'; }
 
     var rows = '';
     if (g.dist !== null && g.dist !== undefined) rows += '<div class="geo-row"><span class="geo-k">距打卡点</span><span class="geo-v">' + Math.round(g.dist) + ' 米</span></div>';
     if (g.acc !== null && g.acc !== undefined) rows += '<div class="geo-row"><span class="geo-k">定位精度</span><span class="geo-v">±' + Math.round(g.acc) + ' 米</span></div>';
-    if (g.error) rows += '<div class="geo-row"><span class="geo-k">问题</span><span class="geo-v bad" style="max-width:68%;text-align:right">' + h(g.error) + '</span></div>';
+    if (g.error) rows += '<div class="geo-row"><span class="geo-k">问题</span><span class="geo-v bad">' + h(g.error) + '</span></div>';
     if (state.lastPunch) rows += '<div class="geo-row"><span class="geo-k">最近一次</span><span class="geo-v">' + h(state.lastPunch) + '</span></div>';
 
     return (
@@ -436,6 +442,43 @@
       (r.allowOutsideNote ? '<button class="geo-btn" id="outside">外勤打卡</button>' : '') +
       '</div></div>'
     );
+  }
+
+  /**
+   * 按钮下方的第三行小字：给出"现在该关注什么"的时间信息。
+   * 头部打卡产品（钉钉/飞书）都在这里放倒计时，因为用户最想知道的是"还有多久能走"。
+   */
+  function countdownHint(s) {
+    if (s.nextType === 'done') return '今日已打完';
+    var r = s.ruleSet;
+    if (s.isRest) return '休息日打卡将记为加班';
+
+    if (s.nextType === 'out' && s.day.inAt) {
+      // 已上班：距离应下班还剩多久
+      var left = R.diffMinutes(s.day.expectOutAt || 0, Date.now());
+      if (left > 0) {
+        return left >= 60
+          ? '还需 ' + Math.floor(left / 60) + ' 小时 ' + (left % 60) + ' 分可下班'
+          : '还需 ' + left + ' 分可下班';
+      }
+      return '已到下班时间';
+    }
+
+    if (s.nextType === 'in') {
+      var toStart = R.diffMinutes(s.day.expectInAt || 0, Date.now());
+      if (toStart > 0) {
+        return toStart >= 60
+          ? '距上班还有 ' + Math.floor(toStart / 60) + ' 小时 ' + (toStart % 60) + ' 分'
+          : '距上班还有 ' + toStart + ' 分';
+      }
+      if (r.type !== 'free' && toStart < 0) {
+        var late = -toStart;
+        return r.type === 'flexible'
+          ? '已过最晚上班 ' + late + ' 分'
+          : '已迟到 ' + late + ' 分';
+      }
+    }
+    return '点击打卡';
   }
 
   function renderIndex() {
@@ -466,6 +509,8 @@
     if (s.day.missingOut) alerts.push({ label: '下班卡未打', tone: 'bad' });
 
     var statusTagVis = s.day.hasAny && s.status !== 'missing' && s.status !== 'absent';
+    // 休息日且完全没打卡：整块时间轴毫无信息量，直接用一句说明替代
+    var restEmpty = s.isRest && !s.day.hasAny;
 
     var html = '<div class="page">';
 
@@ -473,45 +518,57 @@
     html += '<div class="hero-week">' + WEEK[p.weekday] +
       (s.isRest ? '<span class="tag tag-mute">休息日</span>' : '') + '</div></div>';
     html += '<button class="rule-chip" data-go="rules"><span class="chip-dot"></span><span>' +
-      R.ruleTypeName(r.type) + '</span><span class="chip-arrow">›</span></button></div>';
+      R.ruleTypeName(r.type) + '</span><span class="chip-arrow">' + PC_ICONS.chevronRight(12) + '</span></button></div>';
     html += '<div class="rule-line">' + h(R.describeRule(r)) + '</div>';
 
-    html += '<div class="punch-zone"><div class="halo halo-' + (s.nextType === 'done' ? 'in' : s.nextType) + '"></div>';
-    var btnCls = s.nextType === 'done' ? 'done btn-in' : 'btn-' + s.nextType;
+    html += '<div class="punch-zone">';
+    var btnCls = s.nextType === 'done' ? 'is-done' : '';
+    var btnLabel = s.nextType === 'done'
+      ? '已完成'
+      : s.isRest && !s.day.hasAny
+      ? '加班打卡'
+      : s.nextType === 'in' ? '上班打卡' : '下班打卡';
     html += '<button class="punch-btn ' + btnCls + '" id="punchBtn">';
     html += '<span class="btn-time" id="clock">--:--:--</span>';
-    html += '<span class="btn-label">' + (s.nextType === 'in' ? '上班打卡' : s.nextType === 'out' ? '下班打卡' : '已完成') + '</span>';
-    html += '<span class="btn-hint">' + (s.nextType === 'done' ? '今日已打完' : s.isRest ? '休息日打卡将记为加班' : '点击打卡') + '</span>';
+    html += '<span class="btn-label">' + btnLabel + '</span>';
+    html += '<span class="btn-hint">' + countdownHint(s) + '</span>';
     html += '</button>';
     html += '<div class="punch-caption">' + (statusTagVis ? '<span class="tag tag-' + s.statusTone + '">' + s.statusLabel + '</span>' : '') +
       '<span class="caption-text">' + h(captionOf(s)) + '</span></div></div>';
 
-    html += '<div class="card tl-card"><div class="tl">';
-    html += '<div class="tl-node"><div class="tl-mark ' + (s.day.inAt ? 'done' : '') + '"><span class="tl-dot"></span></div>' +
-      '<div class="tl-info"><div class="tl-what">上班</div><div class="tl-when ' + (s.day.inAt ? 'strong' : '') + '">' + s.inText +
-      '</div><div class="tl-plan">应到 ' + s.expectInText + '</div></div></div>';
-    html += '<div class="tl-line"><div class="tl-line-fill" style="width:' + percent + '%"></div></div>';
-    html += '<div class="tl-node right"><div class="tl-mark ' + (s.day.outAt ? 'done' : '') + '"><span class="tl-dot"></span></div>' +
-      '<div class="tl-info"><div class="tl-what">下班</div><div class="tl-when ' + (s.day.outAt ? 'strong' : '') + '">' + s.outText +
-      '</div><div class="tl-plan">应到 ' + s.expectOutText + '</div></div></div>';
-    html += '</div><div class="divider"></div>';
+    if (restEmpty) {
+      html += '<div class="card rest-card">' +
+        '<div class="rest-title">今天休息</div>' +
+        '<div class="rest-desc">按当前规则，' + R.weekdaysText(r.weekdays) + ' 上班。休息日打卡会记为加班。</div>' +
+        '</div>';
+    } else {
+      html += '<div class="card tl-card"><div class="tl">';
+      html += '<div class="tl-node"><div class="tl-mark ' + (s.day.inAt ? 'done' : '') + '"></div>' +
+        '<div class="tl-info"><div class="tl-what">上班</div><div class="tl-when ' + (s.day.inAt ? 'strong' : '') + '">' + s.inText +
+        '</div><div class="tl-plan">应到 ' + s.expectInText + '</div></div></div>';
+      html += '<div class="tl-line"><div class="tl-line-fill" style="width:' + percent + '%"></div></div>';
+      html += '<div class="tl-node right"><div class="tl-mark ' + (s.day.outAt ? 'done' : '') + '"></div>' +
+        '<div class="tl-info"><div class="tl-what">下班</div><div class="tl-when ' + (s.day.outAt ? 'strong' : '') + '">' + s.outText +
+        '</div><div class="tl-plan">应到 ' + s.expectOutText + '</div></div></div>';
+      html += '</div><div class="divider"></div>';
 
-    html += '<div class="metrics">' +
-      '<div class="metric"><div class="m-val">' + work.text + '</div><div class="m-key">' + work.key + '</div></div>' +
-      '<div class="m-sep"></div>' +
-      '<div class="metric"><div class="m-val ' + remain.tone + '">' + remain.text + '</div><div class="m-key">' + remain.key + '</div></div>' +
-      '<div class="m-sep"></div>' +
-      '<div class="metric"><div class="m-val">' + (s.day.overtimeMinutes ? fmtMin(s.day.overtimeMinutes) : '—') + '</div><div class="m-key">加班</div></div>' +
-      '</div>';
+      html += '<div class="metrics">' +
+        '<div class="metric"><div class="m-val">' + work.text + '</div><div class="m-key">' + work.key + '</div></div>' +
+        '<div class="m-sep"></div>' +
+        '<div class="metric"><div class="m-val ' + remain.tone + '">' + remain.text + '</div><div class="m-key">' + remain.key + '</div></div>' +
+        '<div class="m-sep"></div>' +
+        '<div class="metric"><div class="m-val">' + (s.day.overtimeMinutes ? fmtMin(s.day.overtimeMinutes) : '—') + '</div><div class="m-key">加班</div></div>' +
+        '</div>';
 
-    if (alerts.length) {
-      html += '<div class="alerts">';
-      alerts.forEach(function (a) {
-        html += '<div class="alert alert-' + a.tone + '"><span class="alert-dot"></span><span>' + h(a.label) + '</span></div>';
-      });
+      if (alerts.length) {
+        html += '<div class="alerts">';
+        alerts.forEach(function (a) {
+          html += '<div class="alert alert-' + a.tone + '"><span class="alert-dot"></span><span>' + h(a.label) + '</span></div>';
+        });
+        html += '</div>';
+      }
       html += '</div>';
     }
-    html += '</div>';
 
     html += geoBlock(r);
 
@@ -743,13 +800,23 @@
     }
     html += '</div>';
 
+    // 补卡规则（对齐飞书：是否允许 / 可补天数 / 每月次数）
+    html += '<div class="section-label">补卡规则</div><div class="card">';
+    html += rowTappable('允许补卡', r.patch.allow ? '允许' : '不允许', 'patchToggle');
+    if (r.patch.allow) {
+      html += rowTappable('可补天数', r.patch.maxDays === 0 ? '仅当天' : '过去 ' + r.patch.maxDays + ' 天', 'num', 'patchMaxDays');
+      html += rowTappable('每月上限', r.patch.maxPerMonth === 0 ? '不限' : r.patch.maxPerMonth + ' 次', 'num', 'patchMaxPerMonth');
+    }
+    html += '<div class="muted" style="padding-top:' + 'var(--s2)' + '">本月已提交 ' + usedPatchCount() + ' 次补卡申请</div>';
+    html += '</div>';
+
     html += '<div class="section-label">打卡方式</div><div class="card">';
-    html += '<div class="row"><span class="k">位置校验</span><span class="v">' + (r.geo.enabled ? '已开启' : '已关闭') + '</span></div>';
+''
     if (r.geo.enabled) {
       html += rowTappable('打卡点坐标', r.geo.lat.toFixed(5) + ', ' + r.geo.lng.toFixed(5), 'here');
       html += rowTappable('范围半径', r.geo.radius + ' 米', 'num', 'radius');
       html += rowTappable('范围外打卡', r.geo.strict ? '禁止' : '允许（填外勤原因）', 'strict');
-      html += '<div class="row"><span class="k">定位开关</span><span class="v"><span class="tag ' + (r.geo.enabled ? 'tag-ok' : 'tag-mute') + '">点击上方"位置校验"可切换</span></span></div>';
+      html += rowTappable('位置校验', r.geo.enabled ? '已开启（点击关闭）' : '已关闭（点击开启）', 'geoToggle');
     }
     html += '<div class="muted" style="padding:8px 0 0">' + (r.geo.enabled ? '严格模式：范围外无法打卡；宽松模式：范围外可打卡并填外勤原因' : '已关闭位置校验，任何位置都能打卡') + '</div>';
     html += '</div>';
@@ -892,6 +959,8 @@
             dailyTargetMinutes: ['每日目标工时（分钟）', 0, 1440],
             cycleDays: ['轮换周期（天）', 1, 60],
             radius: ['打卡范围半径（米）', 1, 5000],
+            patchMaxDays: ['可补天数（0 = 仅当天）', 0, 180],
+            patchMaxPerMonth: ['每月补卡上限（0 = 不限）', 0, 999],
           };
           var conf = labels[field] || ['数值', 0, 100000];
           openSheet({
@@ -918,6 +987,13 @@
               }
               if (field === 'radius') {
                 db.ruleSet = R.normalizeRuleSet(Object.assign({}, db.ruleSet, { geo: { radius: Math.round(n) } }));
+                save();
+                renderRules();
+                return;
+              }
+              if (field === 'patchMaxDays' || field === 'patchMaxPerMonth') {
+                var key = field === 'patchMaxDays' ? 'maxDays' : 'maxPerMonth';
+                db.ruleSet = R.normalizeRuleSet(Object.assign({}, db.ruleSet, { patch: { [key]: Math.round(n) } }));
                 save();
                 renderRules();
                 return;
@@ -1044,6 +1120,24 @@
           return;
         }
 
+        if (act === 'geoToggle') {
+          var nowOn = !rulesOf().geo.enabled;
+          db.ruleSet = R.normalizeRuleSet(Object.assign({}, db.ruleSet, { geo: { enabled: nowOn } }));
+          save();
+          state.geo = { status: 'idle', ok: false, dist: null, acc: null, error: '' };
+          renderRules();
+          toast(nowOn ? '已开启位置校验' : '已关闭位置校验');
+          return;
+        }
+
+        if (act === 'patchToggle') {
+          db.ruleSet = R.normalizeRuleSet(Object.assign({}, db.ruleSet, { patch: { allow: !rulesOf().patch.allow } }));
+          save();
+          renderRules();
+          toast(rulesOf().patch.allow ? '已允许补卡' : '已关闭补卡');
+          return;
+        }
+
         if (act === 'strict') {
           var next = !rulesOf().geo.strict;
           db.ruleSet = R.normalizeRuleSet(Object.assign({}, db.ruleSet, { geo: { strict: next } }));
@@ -1109,6 +1203,60 @@
   }
 
   /* ======================= 记录页 ======================= */
+
+  /**
+   * 补卡申请：按规则集里的补卡规则（是否允许 / 可补天数 / 每月次数）先校验。
+   * 这条规则来自飞书「管理员设置补卡规则」，钉钉也有等价设置（默认每月 3 次）。
+   */
+  /** 本月已提交的补卡申请数（被驳回的不占额度） */
+  function usedPatchCount() {
+    var month = R.monthKeyOf(Date.now());
+    return db.patches.filter(function (p) {
+      return p.dateKey && p.dateKey.slice(0, 7) === month && p.status !== 'rejected';
+    }).length;
+  }
+
+  function openPatchSheet(dayKey, type, onDone) {
+    var rs = rulesOf();
+    var todayKey = R.dayKeyOf(Date.now());
+    var month = dayKey.slice(0, 7);
+    var used = db.patches.filter(function (p) {
+      return p.dateKey && p.dateKey.slice(0, 7) === month && p.status !== 'rejected';
+    }).length;
+
+    var check = R.canApplyPatch({ ruleSet: rs, targetDayKey: dayKey, todayKey: todayKey, alreadyCount: used });
+    if (!check.ok) {
+      openSheet({ title: '无法补卡', body: check.message, confirmText: '知道了', cancelText: false });
+      return;
+    }
+
+    var quotaText = rs.patch.maxPerMonth > 0
+      ? '本' + (month.slice(5) | 0) + '月已用 ' + used + '/' + rs.patch.maxPerMonth + ' 次补卡额度'
+      : '补卡次数不限';
+
+    openSheet({
+      title: '申请补卡',
+      body: dayKey + ' 的' + (type === 'in' ? '上班' : '下班') + '卡\n' + quotaText,
+      input: '',
+      placeholder: '补卡原因（忘记打卡 / 设备没电 / 在客户现场）',
+      confirmText: '提交',
+      onConfirm: function (val) {
+        var reason = (val || '').trim();
+        if (!reason) { toast('请填写原因'); return; }
+        db.patches.push({
+          id: 'P' + Date.now().toString(36),
+          dateKey: dayKey,
+          type: type,
+          reason: reason,
+          status: 'pending',
+          createdAt: Date.now(),
+        });
+        save();
+        toast('已提交，等待审批');
+        if (onDone) onDone();
+      },
+    });
+  }
 
   function renderRecords() {
     var r = rulesOf();
@@ -1265,21 +1413,7 @@
         var k = el.getAttribute('data-patch');
         var d = R.pairDay(db.records, rulesOf(), k, Date.now());
         var type = d.inRec && !d.outRec ? 'out' : 'in';
-        openSheet({
-          title: '申请补卡',
-          body: k + ' 的' + (type === 'in' ? '上班' : '下班') + '卡，提交后会进入待审批。',
-          input: '',
-          placeholder: '补卡原因（忘记打卡 / 设备没电 / 在客户现场）',
-          confirmText: '提交',
-          onConfirm: function (val) {
-            var reason = (val || '').trim();
-            if (!reason) { toast('请填写原因'); return; }
-            db.patches.push({ id: 'P' + Date.now().toString(36), dateKey: k, type: type, reason: reason, status: 'pending', createdAt: Date.now() });
-            save();
-            toast('已提交补卡申请');
-            renderRecords();
-          },
-        });
+        openPatchSheet(k, type, function () { renderRecords(); });
       };
     });
 
@@ -1337,22 +1471,31 @@
     var otMin = results.reduce(function (s, x) { return s + x.overtimeMinutes; }, 0);
     var withWork = results.filter(function (x) { return x.workMinutes > 0; }).length;
 
-    var counts = {};
+    // 出勤构成按"出勤结果"归类，不按"主状态"。
+    // 加班日的主状态是 overtime，但它的出勤结果是"正常到了，只是多待了"，
+    // 所以归入「正常出勤」并在下面单列一行"其中加班"，否则"正常 15 + 加班 3"
+    // 会让人误以为只有 15 天是正常的。
+    var counts = { normal: 0, late: 0, early: 0, under: 0, missing: 0, absent: 0, rest: 0 };
+    var otDays = 0;
     results.forEach(function (x) {
       if (x.restDay && !x.hasAny) return;
+      if (x.status === 'overtime') { counts.normal += 1; otDays += 1; return; }
       counts[x.status] = (counts[x.status] || 0) + 1;
     });
-    var totalDays = Object.keys(counts).reduce(function (s, k) { return s + counts[k]; }, 0);
+    var totalDays = Object.keys(counts).reduce(function (a, k) { return a + counts[k]; }, 0);
     var distHtml = '';
-    ['normal', 'overtime', 'late', 'early', 'under', 'missing', 'absent', 'rest'].forEach(function (k) {
+    ['normal', 'late', 'early', 'under', 'missing', 'absent', 'rest'].forEach(function (k) {
       if (!counts[k]) return;
-      var m = R.statusMeta(k);
-      var tone = m.tone === 'accent' ? 'accent' : m.tone;
+      var lbl = k === 'normal' ? '正常出勤' : R.statusMeta(k).label;
+      var tone = k === 'normal' ? 'ok' : R.statusMeta(k).tone === 'accent' ? 'accent' : R.statusMeta(k).tone;
       var pct = totalDays ? Math.round((counts[k] / totalDays) * 100) : 0;
-      distHtml += '<div class="dist"><div class="dist-left"><span class="dist-label">' + m.label +
+      distHtml += '<div class="dist"><div class="dist-left"><span class="dist-label">' + lbl +
         '</span><span class="dist-count">' + counts[k] + '</span></div>' +
         '<div class="dist-track"><div class="dist-fill dist-' + tone + '" style="width:' + pct + '%"></div></div></div>';
     });
+    if (otDays) {
+      distHtml += '<div class="muted" style="margin-top:' + 'var(--s2)' + '">其中 ' + otDays + ' 天有加班，已计入正常出勤</div>';
+    }
 
     var firstWeekday = R.partsOf(R.msOfDayMinute(info.firstDayKey, 720)).weekday;
     var cells = '';
@@ -1375,8 +1518,16 @@
         var sh = R.shiftOfDay(r, k2);
         cls = sh.rest ? 'rest' : '';
       }
+      // 热力底：状态不只靠 4px 点，给格子一层很浅的同色底，让人扫一眼看出"哪一周崩了"
+      // 只有"有记录的工作日"才铺底，休息日和未来保持干净
+      var heat = '';
+      if (dayObj && !dayObj.restDay && dayObj.hasAny && k2 <= todayKey) {
+        if (cls.indexOf('bad') >= 0) heat = ' heat-bad';
+        else if (cls.indexOf('warn') >= 0) heat = ' heat-warn';
+        else heat = ' heat-ok';
+      }
       if (k2 === todayKey) cls += ' today';
-      cells += '<div class="cell ' + cls.trim() + '"><span class="cell-d">' + dgn + '</span>' + dot + '</div>';
+      cells += '<div class="cell ' + cls.trim() + heat + '"><span class="cell-d">' + dgn + '</span>' + dot + '</div>';
     }
 
     var bars = '';
@@ -1400,7 +1551,7 @@
       '<button class="mb-side" data-nav="1">›</button></div>';
 
     html += '<div class="hero-card"><div class="hero-main"><div class="hero-num">' + rate +
-      '<span class="hero-unit">%</span></div><div class="hero-label">出勤率 · 按有上班卡天数</div></div>';
+      '<span class="hero-unit">%</span></div><div class="hero-label">出勤率</div></div>';
     html += '<div class="hero-side"><div class="hs-row"><span class="hs-k">应出勤</span><span class="hs-v">' + workdays.length + ' 天</span></div>' +
       '<div class="hs-row"><span class="hs-k">实际打卡</span><span class="hs-v">' + present + ' 天</span></div>' +
       '<div class="hs-row"><span class="hs-k">有异常</span><span class="hs-v warn">' + abnormal + ' 天</span></div></div></div>';
@@ -1458,7 +1609,10 @@
       (s.day.hasAny ? s.statusTone : 'mute') + '">' + (s.day.hasAny ? s.statusLabel : s.isRest ? '休息' : '未打卡') + '</span></span></div>';
     if (s.day.inAt) html += row('上班', s.inText);
     if (s.day.outAt) html += row('下班', s.outText);
-    html += row('今日工时', fmtMin(s.day.workMinutes));
+    var miWork = s.day.inAt && !s.day.outAt
+      ? '计时中 ' + fmtMin(Math.max(0, R.diffMinutes(Date.now(), s.day.inAt)))
+      : fmtMin(s.day.workMinutes);
+    html += row('今日工时', miWork);
     html += '</div>';
 
     html += '<div class="section-label">考勤规则</div><div class="menu">';
@@ -1647,6 +1801,14 @@
     render();
   }
 
+  /* 初始化 tabbar 图标：单色 SVG，选中态由 color 继承 */
+  function initTabIcons() {
+    document.querySelectorAll('[data-icon]').forEach(function (el) {
+      var name = el.getAttribute('data-icon');
+      if (PC_ICONS[name]) el.innerHTML = PC_ICONS[name](18);
+    });
+  }
+
   function render() {
     $navTitle.textContent = PAGE_TITLES[state.page] || '考勤打卡';
     var isRoot = !!ROOT_PAGES[state.page];
@@ -1692,6 +1854,7 @@
 
   /* 首次进入自动试一次定位；不支持/非 HTTPS 时静默，等用户点按钮 */
   function boot() {
+    initTabIcons();
     render();
     var r = rulesOf();
     if (r.geo.enabled && geoSupported() && window.isSecureContext) {

@@ -125,6 +125,26 @@
     </view>
   </view>
 
+  <!-- 补卡规则 -->
+  <view class="section-label">补卡规则</view>
+  <view class="card">
+    <view class="row" bindtap="togglePatch">
+      <text class="k">允许补卡</text>
+      <text class="v">{{ruleSet.patch.allow ? '允许' : '不允许'}} ›</text>
+    </view>
+    <view wx:if="{{ruleSet.patch.allow}}">
+      <view class="row" bindtap="editPatchDays">
+        <text class="k">可补天数</text>
+        <text class="v">{{patchDaysText}} ›</text>
+      </view>
+      <view class="row" bindtap="editPatchQuota">
+        <text class="k">每月上限</text>
+        <text class="v">{{patchQuotaText}} ›</text>
+      </view>
+    </view>
+    <view class="muted hint">本月已提交 {{patchUsed}} 次补卡申请</view>
+  </view>
+
   <!-- 打卡方式（所有类型共用） -->
   <view class="section-label">打卡方式</view>
   <view class="card">

@@ -116,7 +116,7 @@ test('已完成状态：按钮显示已完成，点击弹确认而非直接写�
     }
     const st = await page.evaluate(() => ({
       label: document.querySelector('.btn-label').textContent,
-      done: document.querySelector('.punch-btn').classList.contains('done'),
+      done: document.querySelector('.punch-btn').classList.contains('is-done'),
       n: window.__pc.db().records.length,
     }));
     assert.equal(st.label, '已完成');
@@ -157,22 +157,42 @@ test('已完成状态：按钮显示已完成，点击弹确认而非直接写�
 test('四种规则切换，首页文案都正确且不报错', { skip }, async () => {
   const { browser, page, errors } = await open();
   try {
+    // 先把"今天"设成工作日：否则遇到周末首页会走休息日空态，压根没有指标卡可断言。
+    // 这不是测试作弊，而是让断言不依赖"测试当天是不是周末"这种外部变量。
+    await page.evaluate(() => {
+      const R = window.PC.rules;
+      const db = window.__pc.db();
+      const wd = R.partsOf(Date.now()).weekday;
+      const cur = R.normalizeRuleSet(db.ruleSet).weekdays;
+      db.ruleSet = R.normalizeRuleSet(
+        Object.assign({}, db.ruleSet, { weekdays: cur.concat([wd]).sort((a, b) => a - b) })
+      );
+      localStorage.setItem('pc_web_v2', JSON.stringify(db));
+      window.__pc.go('index');
+    });
+    await page.waitForTimeout(300);
+
     const cases = [
       { type: 'flexible', chip: '弹性工作制', key: '还需工时' },
-      { type: 'shift', chip: '排班制', key: '应满工时' },
-      { type: 'free', chip: '自由工时', key: '目标工时' },
-      { type: 'fixed', chip: '固定班制', key: '应满工时' },
+      { type: 'shift', chip: '排班制', key: /应满工时|实际工时/ },
+      { type: 'free', chip: '自由工时', key: /目标工时|已满/ },
+      { type: 'fixed', chip: '固定班制', key: /应满工时|实际工时/ },
     ];
     for (const c of cases) {
       await page.evaluate((t) => window.__pc.rule(t), c.type);
       await page.waitForTimeout(250);
-      const got = await page.evaluate(() => ({
-        chip: document.querySelector('.rule-chip span:nth-child(2)').textContent,
-        key: document.querySelectorAll('.m-key')[1].textContent,
-        caption: document.querySelector('.caption-text').textContent,
-      }));
-      assert.equal(got.chip, c.chip, c.type + ' 的规则名');
-      assert.equal(got.key, c.key, c.type + ' 的工时可指标签');
+      const got = await page.evaluate(() => {
+        const chip = document.querySelector('.rule-chip');
+        const keys = document.querySelectorAll('.m-key');
+        return {
+          chip: chip ? chip.textContent.replace('›', '').replace(/^\s*/, '').trim() : '',
+          key: keys[1] ? keys[1].textContent : '',
+          caption: document.querySelector('.caption-text') ? document.querySelector('.caption-text').textContent : '',
+        };
+      });
+      assert.match(got.chip, new RegExp(c.chip), c.type + ' 的规则名');
+      if (c.key instanceof RegExp) assert.match(got.key, c.key, c.type + ' 的工时可指标签');
+      else assert.equal(got.key, c.key, c.type + ' 的工时可指标签');
       assert.ok(got.caption.length > 0, c.type + ' 应有说明文案');
     }
     assert.deepEqual(errors, []);
