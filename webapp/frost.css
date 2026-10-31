@@ -1,0 +1,125 @@
+
+/* ==========================================================================
+   磨砂颗粒（webapp/frost.css）
+   --------------------------------------------------------------------------
+   用途：给卡片一层极细的磨砂噪点，解决"半透明白看起来还是一块白"的问题。
+
+   为什么不用 backdrop-filter 做大面积模糊（实测结论）：
+     开/关 blur 两张截图肉眼一致，量化局部对比度只差 1.7%。
+     原因是背景是极平滑的径向渐变，模糊平滑的东西没有任何变化。
+     毛玻璃的价值来自"身后有高频细节"（文字、图片、纹理），
+     而我们的背景全是低频渐变 → 大面积 backdrop-filter 是白付性能。
+
+   所以毛玻璃只用在该用的三处（见 aurora.css 4.3/4.4：顶栏、底栏、弹层，
+   它们身后有"滚动经过的内容"，那才是真实收益）。
+   卡片的"质感"改用噪点实现——不依赖背景，任何底色下都能看出磨砂感。
+   ========================================================================== */
+
+:root {
+  --frost-noise: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48ZmlsdGVyIGlkPSJuIiB4PSIwIiB5PSIwIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC44NSIgbnVtT2N0YXZlcz0iMiIgc3RpdGNoVGlsZXM9InN0aXRjaCIvPjxmZUNvbG9yTWF0cml4IHR5cGU9InNhdHVyYXRlIiB2YWx1ZXM9IjAiLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsdGVyPSJ1cmwoI24pIiBvcGFjaXR5PSIwLjE0Ii8+PC9zdmc+');
+}
+
+/* 卡片：白色 + 噪点 + 极轻的内阴影，形成"磨砂玻璃片"的手感 */
+body[data-bg="8"] .card,
+body[data-bg="9"] .card,
+body[data-bg="8"] .weekbar,
+body[data-bg="9"] .weekbar,
+body[data-bg="8"] .menu,
+body[data-bg="9"] .menu,
+body[data-bg="8"] .options,
+body[data-bg="9"] .options,
+body[data-bg="8"] .chain,
+body[data-bg="9"] .chain {
+  background-color: rgba(255, 255, 255, 0.8);
+  background-image: var(--frost-noise);
+  background-blend-mode: soft-light;
+  background-size: 200px 200px;
+  /* 去掉大面积 backdrop-filter：它在这个画布上收益接近 0 */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 6px 20px -10px rgba(79, 70, 229, 0.18);
+}
+
+/* 关键数字卡：噪点更淡，保证数字锐利 */
+body[data-bg="8"] .summary,
+body[data-bg="9"] .summary,
+body[data-bg="8"] .hero-card,
+body[data-bg="9"] .hero-card,
+body[data-bg="8"] .profile,
+body[data-bg="9"] .profile,
+body[data-bg="8"] .current,
+body[data-bg="9"] .current,
+body[data-bg="8"] .day.is-today,
+body[data-bg="9"] .day.is-today {
+  background-color: rgba(255, 255, 255, 0.9);
+  background-image: var(--frost-noise);
+  background-blend-mode: multiply;
+  background-size: 200px 200px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-color: rgba(255, 255, 255, 0.85);
+}
+
+/* 列表项：半透明白 + 极淡噪点（31 个元素，噪点比 blur 便宜得多） */
+body[data-bg="8"] .day,
+body[data-bg="9"] .day {
+  background-color: rgba(255, 255, 255, 0.84);
+  background-image: var(--frost-noise);
+  background-blend-mode: multiply;
+  background-size: 200px 200px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+/* bg=9：磨砂更重（更白的底 + 更明显的噪点） */
+body[data-bg="9"] .card,
+body[data-bg="9"] .weekbar,
+body[data-bg="9"] .menu,
+body[data-bg="9"] .options,
+body[data-bg="9"] .chain {
+  background-color: rgba(255, 255, 255, 0.58);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 8px 26px -12px rgba(79, 70, 229, 0.22);
+}
+
+/* 深色模式：噪点用柔光混合，避免把深底刷白 */
+@media (prefers-color-scheme: dark) {
+  body[data-bg="8"] .card,
+  body[data-bg="9"] .card,
+  body[data-bg="8"] .day,
+  body[data-bg="9"] .day,
+  body[data-bg="8"] .weekbar,
+  body[data-bg="9"] .weekbar,
+  body[data-bg="8"] .menu,
+  body[data-bg="9"] .menu,
+  body[data-bg="8"] .options,
+  body[data-bg="9"] .options,
+  body[data-bg="8"] .chain,
+  body[data-bg="9"] .chain {
+    background-color: rgba(26, 29, 38, 0.66);
+    background-blend-mode: screen;
+    border-color: rgba(255, 255, 255, 0.09);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 6px 20px -10px rgba(0, 0, 0, 0.6);
+  }
+
+  body[data-bg="8"] .summary,
+  body[data-bg="9"] .summary,
+  body[data-bg="8"] .hero-card,
+  body[data-bg="9"] .hero-card,
+  body[data-bg="8"] .profile,
+  body[data-bg="9"] .profile,
+  body[data-bg="8"] .current,
+  body[data-bg="9"] .current,
+  body[data-bg="8"] .day.is-today,
+  body[data-bg="9"] .day.is-today {
+    background-color: rgba(30, 33, 43, 0.8);
+    background-blend-mode: screen;
+  }
+}

@@ -604,21 +604,44 @@
     if (outside) outside.onclick = function () { outsidePunch(); };
     bindGo();
 
-    tickClock();
+    startClock();
   }
 
   var clockTimer = null;
+  var clockTick = null;
+
+  /**
+   * 时钟：秒数必须每秒更新。
+   * 之前只在 renderIndex 末尾调一次 tickClock()，所以整个页面停留期间时钟是死的
+   * （只有 10 秒重渲染那一瞬间才跳一下）——两个截图时间完全相同才暴露出来。
+   */
   function tickClock() {
     var el = document.getElementById('clock');
     if (!el) return;
     var d = new Date();
     el.textContent = R.pad2(d.getHours()) + ':' + R.pad2(d.getMinutes()) + ':' + R.pad2(d.getSeconds());
-    clearTimeout(clockTimer);
+  }
+
+  function startClock() {
+    stopClock();
+    tickClock();
+    clockTick = setInterval(tickClock, 1000);
     // 每 10 秒重算一次汇总（不每秒重渲染，避免按钮抖动）
     if (state.page === 'index') {
       clockTimer = setTimeout(function () {
         if (state.page === 'index') renderIndex();
       }, 10000);
+    }
+  }
+
+  function stopClock() {
+    if (clockTick) {
+      clearInterval(clockTick);
+      clockTick = null;
+    }
+    if (clockTimer) {
+      clearTimeout(clockTimer);
+      clockTimer = null;
     }
   }
 
@@ -1826,7 +1849,8 @@
         (state.page === 'stats' && t.getAttribute('data-page') === 'records'));
     });
 
-    clearTimeout(clockTimer);
+    // 切页时先停掉旧页面的时钟与重渲染定时器，避免叠加多个 interval
+    stopClock();
 
     if (state.page === 'index') renderIndex();
     else if (state.page === 'records') renderRecords();
@@ -1860,7 +1884,7 @@
   /* 首次进入自动试一次定位；不支持/非 HTTPS 时静默，等用户点按钮 */
   /** 背景变体：?bg=0(纯净) 1(照片头部+浅蒙版) 2(照片头部+深蒙版) 3(整屏照片) */
   function applyBgVariant() {
-    var n = (location.search.match(/bg=([0-7])/) || [])[1] || '7';
+    var n = (location.search.match(/bg=([0-9])/) || [])[1] || '8';
     document.body.setAttribute('data-bg', n);
     return n;
   }

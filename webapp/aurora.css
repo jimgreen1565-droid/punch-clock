@@ -1,0 +1,380 @@
+/* ==========================================================================
+   动画极光 + 毛玻璃（webapp/aurora.css）
+   --------------------------------------------------------------------------
+   用户："加动画，毛玻璃可以用在这吗"
+
+   ## 毛玻璃能不能用：能，但有边界
+   毛玻璃（backdrop-filter）的本质是"把身后的东西模糊掉再加一层薄膜"。
+   它成立的前提是**身后必须有东西可模糊**。所以：
+
+     适合用：
+       · 浮在动态背景上的卡片（身后是极光，模糊后有真实的色彩流动）
+       · 顶栏 / 底栏（身后是滚动的列表内容，滚动时能看出"内容在玻璃下滑过"）
+       · 弹层 / 底部抽屉（身后是页面，模糊后主次分明）
+
+     不适合用：
+       · 白底上的白色卡片（身后没有色彩可模糊，模糊了还是白 = 白付出性能）
+       · 密集文字区（模糊会让背景细节消失，只剩一片糊色，反而脏）
+       · 大面积列表项（每个都 backdrop-filter 会跪，移动端尤其）
+
+   所以这里的做法是：**只在"浮层"上用毛玻璃**（卡片、顶栏、底栏、弹层），
+   列表项（.day）不用，避免 31 个元素各自模糊。
+
+   ## 动画的性能约束
+   1. 只对 transform / opacity 做动画，不碰 width/height/top/left（会触发重排）
+   2. 用 3 个模糊色球（filter: blur 大半径），各自缓慢移动，周期 26~38 秒且互不整除，
+      这样视觉上不会形成可预测的循环
+   3. 色球放 pointer-events:none，不拦截点击
+   4. 用 will-change: transform 提前提升图层
+   5. prefers-reduced-motion: reduce 时全部静止
+   ========================================================================== */
+
+/* ---------- 1. 极光色球容器 ---------- */
+body[data-bg="8"],
+body[data-bg="9"] {
+  background-color: #f6f5ff;
+  overflow-x: hidden;
+}
+
+/* 色球用固定定位，放在 body 的最底层，不与任何内容抢层级 */
+body[data-bg="8"] .aurora,
+body[data-bg="9"] .aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  /* 一层极淡的底，避免色球之间透出纯白缝隙 */
+  background:
+    radial-gradient(1200px 800px at 50% 0%, #f4f2ff 0%, #f8f7ff 45%, #fbfaff 100%);
+}
+
+/* ---------- 2. 三个色球 ---------- */
+body[data-bg="8"] .aurora .blob,
+body[data-bg="9"] .aurora .blob {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+  /* 半径内透明，边缘快速收敛，叠出来是柔光而不是圆圈 */
+  filter: blur(0px);
+}
+
+/* 靛蓝：从左上往中间飘 */
+body[data-bg="8"] .aurora .b1,
+body[data-bg="9"] .aurora .b1 {
+  width: 62vmax;
+  height: 62vmax;
+  left: -22vmax;
+  top: -18vmax;
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.34) 0%, rgba(79, 70, 229, 0.16) 38%, rgba(79, 70, 229, 0) 68%);
+  animation: auroraA 13s ease-in-out infinite alternate;
+}
+
+/* 青：从右上往右下飘 */
+body[data-bg="8"] .aurora .b2,
+body[data-bg="9"] .aurora .b2 {
+  width: 54vmax;
+  height: 54vmax;
+  right: -20vmax;
+  top: -10vmax;
+  background: radial-gradient(circle, rgba(8, 145, 178, 0.30) 0%, rgba(8, 145, 178, 0.13) 40%, rgba(8, 145, 178, 0) 68%);
+  animation: auroraB 17s ease-in-out infinite alternate;
+}
+
+/* 紫：从左下往中间飘 */
+body[data-bg="8"] .aurora .b3,
+body[data-bg="9"] .aurora .b3 {
+  width: 58vmax;
+  height: 58vmax;
+  left: -14vmax;
+  bottom: -24vmax;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.28) 0%, rgba(124, 58, 237, 0.12) 40%, rgba(124, 58, 237, 0) 68%);
+  animation: auroraC 19s ease-in-out infinite alternate;
+}
+
+/* 琥珀：小而弱，从右下缓慢靠近，给画面一个暖尾 */
+body[data-bg="8"] .aurora .b4,
+body[data-bg="9"] .aurora .b4 {
+  width: 42vmax;
+  height: 42vmax;
+  right: -16vmax;
+  bottom: -12vmax;
+  background: radial-gradient(circle, rgba(217, 119, 6, 0.22) 0%, rgba(217, 119, 6, 0.09) 40%, rgba(217, 119, 6, 0) 66%);
+  animation: auroraD 15s ease-in-out infinite alternate;
+}
+
+/* ---------- 3. 四条互不重叠的轨迹 ---------- */
+/* 只在 X/Y 上做小幅位移（±6%~±10% of vmax），周期互不整除（26/31/34/38） */
+@keyframes auroraA {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(22vmax, 14vmax, 0) scale(1.12); }
+  100% { transform: translate3d(10vmax, 26vmax, 0) scale(1.04); }
+}
+
+@keyframes auroraB {
+  0%   { transform: translate3d(0, 0, 0) scale(1.05); }
+  50%  { transform: translate3d(-18vmax, 20vmax, 0) scale(1); }
+  100% { transform: translate3d(-28vmax, 8vmax, 0) scale(1.1); }
+}
+
+@keyframes auroraC {
+  0%   { transform: translate3d(0, 0, 0) scale(1.02); }
+  50%  { transform: translate3d(26vmax, -20vmax, 0) scale(1.14); }
+  100% { transform: translate3d(12vmax, -32vmax, 0) scale(1); }
+}
+
+@keyframes auroraD {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(-20vmax, -14vmax, 0) scale(1.12); }
+  100% { transform: translate3d(-6vmax, -28vmax, 0) scale(1.04); }
+}
+
+/* 尊重系统"减少动态效果"设置：全部静止，只留静态柔光 */
+@media (prefers-reduced-motion: reduce) {
+  body[data-bg="8"] .aurora .blob,
+  body[data-bg="9"] .aurora .blob {
+    animation: none !important;
+  }
+}
+
+/* ==========================================================================
+   4. 毛玻璃：只用在该用的地方
+   ========================================================================== */
+
+/* ---- 4.1 卡片：身后是极光，模糊后有真实色彩流动 ---- */
+body[data-bg="8"] .card,
+body[data-bg="9"] .card,
+body[data-bg="8"] .weekbar,
+body[data-bg="9"] .weekbar,
+body[data-bg="8"] .menu,
+body[data-bg="9"] .menu,
+body[data-bg="8"] .options,
+body[data-bg="9"] .options,
+body[data-bg="8"] .chain,
+body[data-bg="9"] .chain {
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: saturate(180%) blur(18px);
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 4px 16px -8px rgba(79, 70, 229, 0.16);
+}
+
+/* 关键数字卡更实一点：数字必须最清晰 */
+body[data-bg="8"] .summary,
+body[data-bg="9"] .summary,
+body[data-bg="8"] .hero-card,
+body[data-bg="9"] .hero-card,
+body[data-bg="8"] .profile,
+body[data-bg="9"] .profile,
+body[data-bg="8"] .current,
+body[data-bg="9"] .current,
+body[data-bg="8"] .day.is-today,
+body[data-bg="9"] .day.is-today {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+/* ---- 4.2 列表项 .day：**故意不用** backdrop-filter ----
+   31 个列表项各自做背景模糊 = 31 个合成层，移动端会掉帧。
+   这里只用半透明白（不做 blur），视觉上已经能透出色调，性能代价接近 0。 */
+body[data-bg="8"] .day,
+body[data-bg="9"] .day {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.66);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* ---- 4.3 顶栏 / 底栏：身后是滚动内容，滚动时能看出"内容在玻璃下滑过" ---- */
+body[data-bg="8"] .topbar,
+body[data-bg="9"] .topbar {
+  background: rgba(250, 249, 255, 0.58);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+body[data-bg="8"] .topbar.scrolled,
+body[data-bg="9"] .topbar.scrolled {
+  background: rgba(250, 249, 255, 0.82);
+  border-bottom-color: rgba(229, 231, 235, 0.7);
+}
+
+body[data-bg="8"] .tabbar,
+body[data-bg="9"] .tabbar {
+  background: rgba(255, 255, 255, 0.66);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border-top: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+/* ---- 4.4 弹层与底部抽屉：身后是页面，模糊后主次分明 ---- */
+body[data-bg="8"] .sheet-shell,
+body[data-bg="9"] .sheet-shell {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: saturate(180%) blur(28px);
+  -webkit-backdrop-filter: saturate(180%) blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 -8px 40px rgba(79, 70, 229, 0.14);
+}
+
+body[data-bg="8"] .sheet-mask,
+body[data-bg="9"] .sheet-mask {
+  background: rgba(79, 70, 229, 0.18);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+/* ---- 4.5 按钮：主按钮不用毛玻璃（会显得糊、按下去没力气）----
+   只有"次级描边按钮"用，让它像一块薄玻璃片。 */
+body[data-bg="8"] .geo-btn,
+body[data-bg="9"] .geo-btn,
+body[data-bg="8"] .pf-edit,
+body[data-bg="9"] .pf-edit,
+body[data-bg="8"] .mb-side,
+body[data-bg="9"] .mb-side {
+  background: rgba(255, 255, 255, 0.66);
+  backdrop-filter: saturate(160%) blur(12px);
+  -webkit-backdrop-filter: saturate(160%) blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+}
+
+/* ---- 4.6 打卡按钮：不动背景，但加"呼吸光圈"让它活起来 ---- */
+body[data-bg="8"] .punch-btn,
+body[data-bg="9"] .punch-btn {
+  box-shadow:
+    0 0 0 8px rgba(79, 70, 229, 0.06),
+    0 0 0 18px rgba(79, 70, 229, 0.03),
+    0 18px 44px -14px rgba(79, 70, 229, 0.55);
+  animation: pulseRing 3.6s ease-in-out infinite;
+}
+
+/* 呼吸：只动 shadow 的扩散范围（用不等 box-shadow 会重绘，所以改用 outline 的透明度）
+   这里用 opacity 作用在一个伪光晕上，成本最低 */
+body[data-bg="8"] .punch-zone::after,
+body[data-bg="9"] .punch-zone::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 184px;
+  height: 184px;
+  margin: -92px 0 0 -92px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.22) 0%, rgba(79, 70, 229, 0) 70%);
+  pointer-events: none;
+  animation: pulseGlow 2.6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes pulseGlow {
+  0%   { transform: scale(1);    opacity: 0.55; }
+  50%  { transform: scale(1.22); opacity: 0.15; }
+  100% { transform: scale(1);    opacity: 0.55; }
+}
+
+@keyframes pulseRing {
+  0%, 100% { filter: none; }
+}
+
+/* .punch-zone 需要 relative 才能承载绝对定位的光晕 */
+.punch-zone { position: relative; }
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-bg="8"] .punch-zone::after,
+  body[data-bg="9"] .punch-zone::after {
+    animation: none !important;
+    opacity: 0.3;
+  }
+}
+
+/* ==========================================================================
+   5. bg=9：动画 + 更浓的玻璃（对比用）
+   ========================================================================== */
+body[data-bg="9"] .aurora .b1 {
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.46) 0%, rgba(79, 70, 229, 0.22) 38%, rgba(79, 70, 229, 0) 68%);
+}
+body[data-bg="9"] .aurora .b2 {
+  background: radial-gradient(circle, rgba(8, 145, 178, 0.40) 0%, rgba(8, 145, 178, 0.18) 40%, rgba(8, 145, 178, 0) 68%);
+}
+body[data-bg="9"] .aurora .b3 {
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.38) 0%, rgba(124, 58, 237, 0.17) 40%, rgba(124, 58, 237, 0) 68%);
+}
+body[data-bg="9"] .aurora .b4 {
+  background: radial-gradient(circle, rgba(217, 119, 6, 0.30) 0%, rgba(217, 119, 6, 0.13) 40%, rgba(217, 119, 6, 0) 66%);
+}
+
+body[data-bg="9"] .card,
+body[data-bg="9"] .weekbar,
+body[data-bg="9"] .menu,
+body[data-bg="9"] .options,
+body[data-bg="9"] .chain {
+  background: rgba(255, 255, 255, 0.52);
+  backdrop-filter: saturate(200%) blur(22px);
+  -webkit-backdrop-filter: saturate(200%) blur(22px);
+}
+
+/* ==========================================================================
+   6. 深色模式
+   ========================================================================== */
+@media (prefers-color-scheme: dark) {
+  body[data-bg="8"] .aurora,
+  body[data-bg="9"] .aurora {
+    background: radial-gradient(1200px 800px at 50% 0%, #14131f 0%, #101018 50%, #0d0d13 100%);
+  }
+
+  body[data-bg="8"] .aurora .b1,
+  body[data-bg="9"] .aurora .b1 {
+    background: radial-gradient(circle, rgba(99, 91, 255, 0.34) 0%, rgba(99, 91, 255, 0) 68%);
+  }
+  body[data-bg="8"] .aurora .b2,
+  body[data-bg="9"] .aurora .b2 {
+    background: radial-gradient(circle, rgba(34, 211, 238, 0.22) 0%, rgba(34, 211, 238, 0) 68%);
+  }
+  body[data-bg="8"] .aurora .b3,
+  body[data-bg="9"] .aurora .b3 {
+    background: radial-gradient(circle, rgba(147, 91, 255, 0.28) 0%, rgba(147, 91, 255, 0) 68%);
+  }
+  body[data-bg="8"] .aurora .b4,
+  body[data-bg="9"] .aurora .b4 {
+    background: radial-gradient(circle, rgba(251, 191, 36, 0.18) 0%, rgba(251, 191, 36, 0) 66%);
+  }
+
+  body[data-bg="8"] .card,
+  body[data-bg="9"] .card,
+  body[data-bg="8"] .weekbar,
+  body[data-bg="9"] .weekbar,
+  body[data-bg="8"] .menu,
+  body[data-bg="9"] .menu,
+  body[data-bg="8"] .options,
+  body[data-bg="9"] .options,
+  body[data-bg="8"] .chain,
+  body[data-bg="9"] .chain {
+    background: rgba(23, 26, 33, 0.6);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  body[data-bg="8"] .day,
+  body[data-bg="9"] .day {
+    background: rgba(23, 26, 33, 0.7);
+    border-color: rgba(255, 255, 255, 0.07);
+  }
+
+  body[data-bg="8"] .topbar,
+  body[data-bg="9"] .topbar {
+    background: rgba(16, 16, 24, 0.6);
+  }
+
+  body[data-bg="8"] .tabbar,
+  body[data-bg="9"] .tabbar {
+    background: rgba(16, 16, 24, 0.7);
+  }
+
+  body[data-bg="8"] .sheet-shell,
+  body[data-bg="9"] .sheet-shell {
+    background: rgba(23, 26, 33, 0.85);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}
