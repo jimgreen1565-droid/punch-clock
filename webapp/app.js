@@ -388,7 +388,8 @@
   function captionOf(s) {
     var r = s.ruleSet;
     var now = s.now;
-    if (s.isRest && !s.day.hasAny) return '今天休息，不用打卡';
+    // 不能写「不用打卡」：休息日按钮仍可点（会记为加班），两句话会自相矛盾
+    if (s.isRest && !s.day.hasAny) return '休息日，打卡会记为加班';
     if (r.type === 'free') {
       if (!s.day.hasAny) return '自由工时 · 任何时间都能打卡，按累计工时计';
       var span = s.day.inAt ? R.diffMinutes(now, s.day.inAt) : 0;
@@ -509,6 +510,10 @@
     if (s.day.missingOut) alerts.push({ label: '下班卡未打', tone: 'bad' });
 
     var statusTagVis = s.day.hasAny && s.status !== 'missing' && s.status !== 'absent';
+    // 状态标签已经把「迟到」说了一次，alerts 里就不再重复同一句
+    if (statusTagVis) {
+      alerts = alerts.filter(function (a) { return a.label.indexOf(s.statusLabel) < 0; });
+    }
     // 休息日且完全没打卡：整块时间轴毫无信息量，直接用一句说明替代
     var restEmpty = s.isRest && !s.day.hasAny;
 
