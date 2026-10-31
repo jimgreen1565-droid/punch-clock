@@ -1,170 +1,368 @@
 /* ==========================================================================
-   配色方案（webapp/palette.css）
+   多色彩方案（webapp/palette.css）
    --------------------------------------------------------------------------
-   用户反馈「配色太单调」。诊断出的三个具体原因：
+   用户第三轮反馈：前两轮先"太白"、再"单调"，现在明确要"多色彩"。
 
-     1. 只有 1 个蓝 + 灰阶，缺少"中间层"——按钮、链接、选中态全是一个色，
-        没有深浅对比，眼睛找不到"强调"。
-     2. 状态色只有小圆点。31 天列表里全是绿点，扫不出"哪天迟到、哪天缺卡"。
-        小圆点在单个列表是有效的，但在一份月记录里是无效的（信息量没被编码）。
-     3. 页面纯白到底，没有任何区域比别的区域更亮或更暗，所以"平"。
+   这一版的做法变了：不再是"主色 + 灰阶 + 几个状态点"，而是
+   **给每个信息类别分配一个固定的色相**，让颜色本身承担分类功能。
+   这是仪表盘/看板类界面的常见做法（每类数据一个色），不是乱上色。
 
-   这一层不覆盖原 token，只在其上叠加可选主题；未指定时保持蓝色系。
+   色相分工（9 个类别，各有固定色）：
+     主品牌   indigo   #4f46e5   打卡按钮、主要 CTA、选中态
+     出勤     green    #059669   正常/出勤/已打卡
+     加班     violet   #7c3aed   加班时长、加班标签
+     迟到     amber    #d97706   迟到、早退
+     缺卡     red      #dc2626   缺卡、旷工
+     外勤     cyan     #0891b2   外勤、未定位
+     工时     blue     #2563eb   工时数字、时间轴
+     薪资/数据 slate   #475569   辅助数值
+     休息     gray     #94a3b8   休息日
+
+   实现方式：
+     给每个"数据块"一个语义类名（.acc-present / .acc-overtime / .acc-late ...），
+     这些类名各自带 --acc 色，然后把 --acc 用到数字、小标签、迷你进度条上。
    ========================================================================== */
 
-/* ---- 四套主题（?palette=blue|indigo|teal|amber） ----
-   变量挂在 body 上（不是 :root）。因为 html 是 body 的父节点，:root 的同名变量
-   不会被子层覆盖回去；body 上声明的 --primary 会被 body 的所有后代继承，
-   所以按钮、标签、渐变都能拿到主题色。
-   注意：测量生效值时要读 body，读 documentElement 会拿到 :root 的默认蓝。 */
-
-body[data-palette="indigo"] {
+/* ---------- 品牌主色（多色方案下调成 indigo，和绿色状态明显区分） ---------- */
+body[data-palette="colorful"],
+body[data-palette="vivid"] {
   --primary: #4f46e5;
   --primary-hover: #4338ca;
   --primary-soft: #eef2ff;
 }
 
-body[data-palette="teal"] {
-  --primary: #0f9d8f;
-  --primary-hover: #0d857a;
-  --primary-soft: #ecfdf9;
-}
-
-body[data-palette="amber"] {
-  --primary: #c2740c;
-  --primary-hover: #a35f08;
-  --primary-soft: #fffaeb;
+/* ---------- 9 个语义色（挂在 body 上，供所有后代继承） ---------- */
+body[data-palette="colorful"],
+body[data-palette="vivid"] {
+  --c-present: #059669;   /* 出勤/正常 */
+  --c-present-bg: #ecfdf5;
+  --c-overtime: #7c3aed;  /* 加班 */
+  --c-overtime-bg: #f5f3ff;
+  --c-late: #d97706;      /* 迟到/早退 */
+  --c-late-bg: #fffbeb;
+  --c-missing: #dc2626;   /* 缺卡/旷工 */
+  --c-missing-bg: #fef2f2;
+  --c-outside: #0891b2;   /* 外勤/未定位 */
+  --c-outside-bg: #ecfeff;
+  --c-hours: #2563eb;     /* 工时 */
+  --c-hours-bg: #eff6ff;
+  --c-rest: #94a3b8;      /* 休息 */
+  --c-rest-bg: #f8fafc;
+  --c-data: #475569;      /* 辅助数据 */
 }
 
 /* ==========================================================================
-   状态色：扩到 6 个语义，并且「异常类」用小浅底 + 同色字
-   --------------------------------------------------------------------------
-   正常日保持最轻（只有圆点），异常类才配浅底。
-   这样扫读一份月记录时，眼睛会直接跳到异常日，而不是被满屏绿点淹没。
+   把语义色应用到各处的数字与标签
    ========================================================================== */
 
-.tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.4;
-  white-space: nowrap;
-  color: var(--text-2);
+/* ---- 首页三项指标：工时/应满/加班，各给一个色 ---- */
+body[data-palette="colorful"] .metric:nth-child(1) .m-val,
+body[data-palette="vivid"] .metric:nth-child(1) .m-val {
+  color: var(--c-hours, #2563eb);
 }
 
-.tag::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex: 0 0 auto;
+body[data-palette="colorful"] .metric:nth-child(3) .m-val,
+body[data-palette="vivid"] .metric:nth-child(3) .m-val {
+  color: var(--c-overtime, #7c3aed);
 }
 
-/* 正常：最轻，只留圆点 */
-.tag-ok {
-  color: var(--success);
+body[data-palette="colorful"] .metric:nth-child(5) .m-val,
+body[data-palette="vivid"] .metric:nth-child(5) .m-val {
+  color: var(--c-overtime, #7c3aed);
 }
 
-/* 异常类：浅底 + 同色字，扫读时能跳出来 */
-.tag-warn {
-  color: #92500a;
-  background: rgba(217, 119, 6, 0.12);
+/* ---- 时间轴：上班=靛蓝，下班=紫，让两个节点区分开 ---- */
+body[data-palette="colorful"] .tl-node .tl-mark.done,
+body[data-palette="vivid"] .tl-node .tl-mark.done {
+  background: var(--primary);
+}
+
+body[data-palette="colorful"] .tl-node.right .tl-mark.done,
+body[data-palette="vivid"] .tl-node.right .tl-mark.done {
+  background: var(--c-overtime, #7c3aed);
+}
+
+body[data-palette="colorful"] .tl-line-fill,
+body[data-palette="vivid"] .tl-line-fill {
+  background: linear-gradient(90deg, var(--primary), var(--c-overtime, #7c3aed));
+}
+
+/* ---- 状态标签逐个上色（这是"多色彩"最直观的地方） ---- */
+body[data-palette="colorful"] .tag-ok,
+body[data-palette="vivid"] .tag-ok {
+  color: var(--c-present, #059669);
+  background: var(--c-present-bg, #ecfdf5);
   padding: 2px 7px 2px 6px;
   border-radius: var(--r-sm);
 }
 
-.tag-bad {
-  color: #a51b1b;
-  background: rgba(220, 38, 38, 0.1);
-  padding: 2px 7px 2px 6px;
-  border-radius: var(--r-sm);
+body[data-palette="colorful"] .tag-warn,
+body[data-palette="vivid"] .tag-warn {
+  color: var(--c-late, #d97706);
+  background: var(--c-late-bg, #fffbeb);
 }
 
-/* 加班/外勤：用主色系，和"问题"区分开（它们不是异常） */
-.tag-brand,
-.tag-accent {
+body[data-palette="colorful"] .tag-bad,
+body[data-palette="vivid"] .tag-bad {
+  color: var(--c-missing, #dc2626);
+  background: var(--c-missing-bg, #fef2f2);
+}
+
+/* 加班/外勤：紫与青，和"问题"完全分开 */
+body[data-palette="colorful"] .tag-brand,
+body[data-palette="colorful"] .tag-accent,
+body[data-palette="vivid"] .tag-brand,
+body[data-palette="vivid"] .tag-accent {
+  color: var(--c-overtime, #7c3aed);
+  background: var(--c-overtime-bg, #f5f3ff);
+}
+
+/* ---- 记录页四格汇总：每个数字一个色 ---- */
+body[data-palette="colorful"] .sum-val,
+body[data-palette="vivid"] .sum-val {
+  color: var(--c-present, #059669);
+}
+
+body[data-palette="colorful"] .sum-val.warn,
+body[data-palette="vivid"] .sum-val.warn {
+  color: var(--c-late, #d97706);
+}
+
+body[data-palette="colorful"] .sum-val.accent,
+body[data-palette="vivid"] .sum-val.accent {
+  color: var(--c-overtime, #7c3aed);
+}
+
+/* 四格里的"工时"是第 3 个，给蓝色 */
+body[data-palette="colorful"] .sum-item:nth-child(3) .sum-val,
+body[data-palette="vivid"] .sum-item:nth-child(3) .sum-val {
+  color: var(--c-hours, #2563eb);
+}
+
+/* ---- 统计页：出勤率主色、KPI 三色、构成条多色 ---- */
+body[data-palette="colorful"] .hero-num,
+body[data-palette="vivid"] .hero-num {
   color: var(--primary);
-  background: var(--primary-soft);
-  padding: 2px 7px 2px 6px;
-  border-radius: var(--r-sm);
 }
 
-/* 迟到/早退的琥珀色不能和 amber 主色撞，所以 amber 主题下把 warn 推深一档 */
-body[data-palette="amber"] .tag-warn {
-  color: #8a3a0a;
-  background: rgba(194, 116, 12, 0.14);
+body[data-palette="colorful"] .kpi-item:nth-child(1) .kpi-val,
+body[data-palette="vivid"] .kpi-item:nth-child(1) .kpi-val {
+  color: var(--c-hours, #2563eb);
 }
 
-/* teal 主题下"正常"的绿点会和主色接近，用更深一档的绿拉开 */
-body[data-palette="teal"] .tag-ok {
-  color: #15803d;
+body[data-palette="colorful"] .kpi-item:nth-child(3) .kpi-val,
+body[data-palette="vivid"] .kpi-item:nth-child(3) .kpi-val {
+  color: var(--c-overtime, #7c3aed);
 }
 
-.tag-mute { color: var(--text-3); }
-.tag-pill {
-  padding: 2px 8px;
-  border-radius: var(--r-sm);
-  background: var(--surface);
-  color: var(--text-2);
+/* 构成条：正常绿、加班紫、迟到琥珀、缺卡红 —— 已经是多色了，这里只保证饱和度够 */
+body[data-palette="colorful"] .dist-ok,
+body[data-palette="vivid"] .dist-ok {
+  background: var(--c-present, #059669);
 }
-.tag-pill::before { display: none; }
+
+body[data-palette="colorful"] .dist-accent,
+body[data-palette="vivid"] .dist-accent {
+  background: var(--c-overtime, #7c3aed);
+}
+
+body[data-palette="colorful"] .dist-warn,
+body[data-palette="vivid"] .dist-warn {
+  background: var(--c-late, #d97706);
+}
+
+body[data-palette="colorful"] .dist-bad,
+body[data-palette="vivid"] .dist-bad {
+  background: var(--c-missing, #dc2626);
+}
+
+/* ---- 日历热力：多色档位（正常绿 / 迟到琥珀 / 缺卡红 / 加班紫 / 休息灰） ---- */
+body[data-palette="colorful"] .cell.heat-ok,
+body[data-palette="vivid"] .cell.heat-ok {
+  background: var(--c-present-bg, #ecfdf5);
+}
+
+body[data-palette="colorful"] .cell.heat-warn,
+body[data-palette="vivid"] .cell.heat-warn {
+  background: var(--c-late-bg, #fffbeb);
+}
+
+body[data-palette="colorful"] .cell.heat-bad,
+body[data-palette="vivid"] .cell.heat-bad {
+  background: var(--c-missing-bg, #fef2f2);
+}
+
+body[data-palette="colorful"] .cell.ok .cell-dot,
+body[data-palette="vivid"] .cell.ok .cell-dot {
+  background: var(--c-present, #059669);
+}
+
+body[data-palette="colorful"] .cell.warn .cell-dot,
+body[data-palette="vivid"] .cell.warn .cell-dot {
+  background: var(--c-late, #d97706);
+}
+
+body[data-palette="colorful"] .cell.bad .cell-dot,
+body[data-palette="vivid"] .cell.bad .cell-dot {
+  background: var(--c-missing, #dc2626);
+}
+
+body[data-palette="colorful"] .cell.accent .cell-dot,
+body[data-palette="vivid"] .cell.accent .cell-dot {
+  background: var(--c-overtime, #7c3aed);
+}
+
+/* ---- 近 7 日柱状：按状态上色 ---- */
+body[data-palette="colorful"] .bar-ok,
+body[data-palette="vivid"] .bar-ok {
+  background: var(--c-hours, #2563eb);
+}
+
+body[data-palette="colorful"] .bar-warn,
+body[data-palette="vivid"] .bar-warn {
+  background: var(--c-late, #d97706);
+}
+
+body[data-palette="colorful"] .bar-bad,
+body[data-palette="vivid"] .bar-bad {
+  background: var(--c-missing, #dc2626);
+}
+
+/* ---- 周历条的小圆点也要真彩 ---- */
+body[data-palette="colorful"] .wb-ok,
+body[data-palette="vivid"] .wb-ok {
+  background: var(--c-present, #059669);
+}
+
+body[data-palette="colorful"] .wb-warn,
+body[data-palette="vivid"] .wb-warn {
+  background: var(--c-late, #d97706);
+}
+
+body[data-palette="colorful"] .wb-bad,
+body[data-palette="vivid"] .wb-bad {
+  background: var(--c-missing, #dc2626);
+}
+
+/* ---- 定位状态：在范围内=绿，超范围=红，精度不足=琥珀 ---- */
+body[data-palette="colorful"] .geo-state.ok,
+body[data-palette="vivid"] .geo-state.ok {
+  color: var(--c-present, #059669);
+}
+
+body[data-palette="colorful"] .geo-state.bad,
+body[data-palette="vivid"] .geo-state.bad {
+  color: var(--c-missing, #dc2626);
+}
+
+/* ---- 我的页：状态/哈希链/记录数各给一个色 ---- */
+body[data-palette="colorful"] .chain.ok .chain-icon,
+body[data-palette="vivid"] .chain.ok .chain-icon {
+  background: var(--c-present, #059669);
+}
+
+body[data-palette="colorful"] .chain.ok .chain-title,
+body[data-palette="vivid"] .chain.ok .chain-title {
+  color: var(--c-present, #059669);
+}
 
 /* ==========================================================================
-   页面层次：让"平"的页面有亮暗区分
+   顶部渐变也变成多色：从靛蓝浅 → 绿浅 → 白
    ========================================================================== */
-
-/* 顶部品牌浅色渐变：页面上半部分有"光从上面来"的层次，往下收敛到纯白 */
-.shell {
-  background-color: var(--bg);
-  background-image: linear-gradient(180deg, var(--primary-soft) 0px, #ffffff 200px);
+body[data-palette="colorful"] .shell,
+body[data-palette="vivid"] .shell {
+  background-image: linear-gradient(
+    180deg,
+    rgba(79, 70, 229, 0.1) 0px,
+    rgba(79, 70, 229, 0.04) 70px,
+    rgba(5, 150, 105, 0.05) 150px,
+    #ffffff 230px
+  );
+  background-size: 100% 230px;
   background-repeat: no-repeat;
-  background-size: 100% 200px;
 }
 
-/* 记录列表里的"今天"：主色浅底 + 左侧主色竖条，一眼找到今天 */
-.day.is-today {
-  background: var(--primary-soft);
-  border-color: transparent;
+/* 今天那一行：主色浅底保持 */
+body[data-palette="colorful"] .day.is-today,
+body[data-palette="vivid"] .day.is-today {
+  background: var(--primary-soft, #eef2ff);
   box-shadow: inset 3px 0 0 var(--primary);
 }
 
-/* 打卡按钮：一圈极淡外环 + 一层有方向的主色投影，让它"浮起来"而不是贴纸 */
-.punch-btn {
+/* tabbar 选中：主色 */
+body[data-palette="colorful"] .tab.active,
+body[data-palette="vivid"] .tab.active {
+  color: var(--primary);
+}
+
+/* ==========================================================================
+   colorful 补充：把首页与时间轴的色彩再拉开
+   --------------------------------------------------------------------------
+   上面的第一轮改动主要集中在列表和统计页。首页还有三处"整片同色"：
+     (1) 时间轴两个节点同色，分不清"上班/下班"
+     (2) 进度条只有单色
+     (3) 打卡按钮是唯一的大色块，周围没有任何同色呼应
+   ========================================================================== */
+
+/* (1) 时间轴：上班节点=主色，下班节点=紫；连线用两色渐变 */
+body[data-palette="colorful"] .tl-node:not(.right) .tl-mark.done {
+  background: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+body[data-palette="colorful"] .tl-node.right .tl-mark.done {
+  background: var(--c-overtime, #7c3aed);
+  box-shadow: 0 0 0 3px var(--c-overtime-bg, #f5f3ff);
+}
+
+body[data-palette="colorful"] .tl-line-fill {
+  background: linear-gradient(90deg, var(--primary) 0%, var(--c-overtime, #7c3aed) 100%);
+}
+
+/* (2) 上班/下班的时间数字也各上一色，形成"两端不同色"的读法 */
+body[data-palette="colorful"] .tl-node:not(.right) .tl-when.strong {
+  color: var(--c-hours, #2563eb);
+}
+
+body[data-palette="colorful"] .tl-node.right .tl-when.strong {
+  color: var(--c-overtime, #7c3aed);
+}
+
+/* (3) 打卡按钮外圈加一圈同色淡环，让它在页面里"有回声"而不是孤零零一块 */
+body[data-palette="colorful"] .punch-btn {
   box-shadow:
-    0 0 0 1px rgba(37, 99, 235, 0.05),
-    0 10px 28px -10px var(--primary);
+    0 0 0 6px rgba(79, 70, 229, 0.07),
+    0 0 0 14px rgba(79, 70, 229, 0.03),
+    0 12px 30px -12px var(--primary);
 }
 
-/* 月历：有记录的正常日给极淡主色底，让整月看起来"被填满"而不是留白一片 */
-.cell.heat-ok {
-  background: var(--primary-soft);
+/* (4) 三项指标：中间那格（应满工时）用青色，和左蓝右紫形成三色 */
+body[data-palette="colorful"] .metric:nth-child(3) .m-val {
+  color: var(--c-outside, #0891b2);
 }
 
-/* 指标区：数字用主色，和灰色说明拉开 */
-.m-val {
-  color: var(--text);
+/* (5) 定位卡片：在范围内用绿，把绿色也带进页面下半部 */
+body[data-palette="colorful"] .geo-state.ok {
+  color: var(--c-present, #059669);
 }
 
-/* 首页"最近一次/距打卡点"这类关键读数用主色，增加色彩层次 */
-.geo-v {
-  color: var(--text);
+body[data-palette="colorful"] .geo-state.ok .geo-dot {
+  box-shadow: 0 0 0 3px var(--c-present-bg, #ecfdf5);
 }
 
-/* 三个月度大数字（出勤/异常/工时/加班）里，把"加班"这格用主色，
-   让四格里有一格是彩色的，不至于整排灰 */
-.sum-val.accent {
+/* (6) 页脚"写入哈希链"那行：用青色小字，给页面底部一个收尾色 */
+body[data-palette="colorful"] .page > div:last-child.muted {
+  color: var(--c-outside, #0891b2);
+}
+
+/* (7) 我的页：头像不再是灰底，用主色浅底 + 主色字 */
+body[data-palette="colorful"] .avatar {
+  background: var(--primary-soft, #eef2ff);
   color: var(--primary);
 }
 
-/* 统计页出勤率大数字已用主色，这里让"应出勤/实际打卡"的数值略深 */
-.hs-v {
-  color: var(--text);
-}
-
-/* tabbar 选中项：图标 + 文字都用主色，且给一个小圆点指示 */
-.tab.active .ti {
-  color: var(--primary);
+/* (8) 规则页：当前规则卡用主色浅底，四种选项选中态用主色浅底 */
+body[data-palette="colorful"] .current {
+  background: var(--primary-soft, #eef2ff);
+  border-color: transparent;
 }

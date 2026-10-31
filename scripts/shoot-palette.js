@@ -19,7 +19,7 @@ const OUT = path.join(ROOT, 'docs');
   const browser = await chromium.launch({ executablePath: CHROME, headless: true });
 
   // 同时拍首页 + 记录页，因为"单调"在记录页最明显
-  const palettes = ['blue', 'indigo', 'teal', 'amber'];
+  const palettes = ['blue', 'colorful'];
 
   for (const pal of palettes) {
     const ctx = await browser.newContext({

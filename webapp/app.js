@@ -1865,11 +1865,11 @@
     return n;
   }
 
-  /** 配色方案：?palette=blue|indigo|teal|amber */
+  /** 配色方案：?palette=blue|indigo|teal|amber|colorful */
   function applyPalette() {
     var m = location.search.match(/palette=([a-z]+)/);
-    var p = m ? m[1] : 'blue';
-    if (['blue', 'indigo', 'teal', 'amber'].indexOf(p) < 0) p = 'blue';
+    var p = m ? m[1] : 'colorful';
+    if (['blue', 'indigo', 'teal', 'amber', 'colorful'].indexOf(p) < 0) p = 'colorful';
     document.body.setAttribute('data-palette', p);
     return p;
   }
