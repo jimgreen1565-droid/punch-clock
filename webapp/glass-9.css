@@ -1,0 +1,69 @@
+/* ==========================================================================
+   bg=9：更"玻璃"的版本（bg=8 是轻玻璃，bg=9 是厚玻璃）
+   --------------------------------------------------------------------------
+   之前 bg=9 和 bg=8 用了同一套 0.42 规则 → 两版完全一样，看不出区别。
+   这里让 bg=9 真正更透、更模糊、背景细节更粗。
+   ========================================================================== */
+
+/* 背景细节加粗：网格 36px、线更明显、光带更强 */
+body[data-bg="9"] .aurora {
+  background-image:
+    repeating-linear-gradient(0deg, rgba(79, 70, 229, 0.16) 0 1.5px, transparent 1.5px 36px),
+    repeating-linear-gradient(90deg, rgba(79, 70, 229, 0.16) 0 1.5px, transparent 1.5px 36px),
+    repeating-linear-gradient(135deg, rgba(124, 58, 237, 0.12) 0 3px, transparent 3px 52px),
+    radial-gradient(1200px 820px at 50% 0%, #f1efff 0%, #f8f6ff 42%, #ffffff 100%);
+  background-size: 36px 36px, 36px 36px, 52px 52px, 100% 100%;
+  background-repeat: repeat, repeat, repeat, no-repeat;
+}
+
+/* 普通卡片：0.3 白 + 40px 大模糊，背景网格被彻底糊成雾 */
+body[data-bg="9"] .card,
+body[data-bg="9"] .weekbar,
+body[data-bg="9"] .menu,
+body[data-bg="9"] .options,
+body[data-bg="9"] .chain {
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: saturate(220%) blur(40px);
+  -webkit-backdrop-filter: saturate(220%) blur(40px);
+  border-color: rgba(255, 255, 255, 0.72);
+}
+
+/* 列表项：0.38 白 + 28px */
+body[data-bg="9"] .day {
+  background: rgba(255, 255, 255, 0.38);
+  backdrop-filter: saturate(220%) blur(28px);
+  -webkit-backdrop-filter: saturate(220%) blur(28px);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+/* 关键数字卡：0.44（数字要清晰，但比 bg=8 更透） */
+body[data-bg="9"] .summary,
+body[data-bg="9"] .hero-card,
+body[data-bg="9"] .profile,
+body[data-bg="9"] .current,
+body[data-bg="9"] .day.is-today {
+  background: rgba(255, 255, 255, 0.44);
+  backdrop-filter: saturate(220%) blur(36px);
+  -webkit-backdrop-filter: saturate(220%) blur(36px);
+}
+
+/* 顶栏 / 底栏 / 弹层更透 */
+body[data-bg="9"] .topbar { background: rgba(250, 249, 255, 0.24); }
+
+body[data-bg="9"] .tabbar {
+  background: rgba(255, 255, 255, 0.28);
+  backdrop-filter: saturate(220%) blur(36px);
+  -webkit-backdrop-filter: saturate(220%) blur(36px);
+}
+
+body[data-bg="9"] .sheet-shell {
+  background: rgba(255, 255, 255, 0.48);
+  backdrop-filter: saturate(220%) blur(44px);
+  -webkit-backdrop-filter: saturate(220%) blur(44px);
+}
+
+/* bg=9 的次要文字再深一档，保证透底上仍可读 */
+body[data-bg="9"] {
+  --text-2: #414b5c;
+  --text-3: #5f6878;
+}

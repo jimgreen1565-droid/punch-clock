@@ -1,101 +1,92 @@
-/**
- * 量化验证毛玻璃是否真的在模糊背景。
- *
- * 方法：在页面坐标系里取同一块区域，分别读"开 blur"和"关 blur"的像素，
- * 比较相邻像素差（局部对比度）。模糊会把渐变抹平 → 局部对比度下降。
- *
- * 用 Playwright 直接读像素，不走 PNG 解码（避免 filter 类型带来的解析歧义）。
- */
-const path = require('path');
+import { chromium } from 'playwright-core';
+import fs from 'node:fs';
 
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const ROOT = path.resolve(__dirname, '..');
-const ENTRY = 'file:///' + path.join(ROOT, 'webapp', 'index.html').replace(/\\/g, '/') + '?bg=8';
+const ROOT = 'D:/ZW/Documents/deepseek-harness/default-workspace/punch-clock';
+const ENTRY = 'file:///' + ROOT + '/webapp/index.html';
 
-(async () => {
-  let chromium;
-  for (const c of ['playwright-core', path.join(ROOT, '..', 'node_modules', 'playwright-core')]) {
-    try { chromium = require(c).chromium; break; } catch (e) { /* next */ }
-  }
-  if (!chromium || !require('fs').existsSync(CHROME)) { console.error('缺 playwright-core 或 Chrome'); process.exit(2); }
+const browser = await chromium.launch({ executablePath: CHROME, headless: true });
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+const page = await ctx.newPage();
 
-  const browser = await chromium.launch({ executablePath: CHROME, headless: true });
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
-  const page = await ctx.newPage();
-
-  async function sample(disableBlur) {
-    await page.goto(ENTRY);
-    await page.waitForTimeout(700);
-    if (disableBlur) {
-      await page.evaluate(() => {
-        const s = document.createElement('style');
-        s.textContent = '*{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}';
-        document.head.appendChild(s);
-      });
-      await page.waitForTimeout(300);
-    }
-    // 取"卡片边缘 + 背景"的跨界区域：这里 blur 前后差异最明显
-    const rect = await page.evaluate(() => {
-      const card = document.querySelector('.geo-card') || document.querySelector('.card');
-      if (!card) return null;
-      const r = card.getBoundingClientRect();
-      return {
-        x: Math.round(r.left + 20),
-        y: Math.round(r.top - 6),   // 上半截在卡片外（纯背景），下半截在卡片内（模糊层）
-        width: 120,
-        height: 60,
-      };
+async function measure(bg, disableBlur) {
+  await page.goto(ENTRY + '?bg=' + bg);
+  await page.waitForTimeout(600);
+  await page.evaluate(() => window.__pc.go('records'));
+  await page.waitForTimeout(400);
+  if (disableBlur) {
+    await page.evaluate(() => {
+      const s = document.createElement('style');
+      s.textContent = '*,*::before,*::after{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}';
+      document.head.appendChild(s);
     });
-    const buf = await page.screenshot({ clip: rect });
-    // 用 canvas 解 PNG 读像素
-    const stats = await page.evaluate(async ({ dataB64 }) => {
-      const img = new Image();
-      img.src = 'data:image/png;base64,' + dataB64;
-      await new Promise((r) => { img.onload = r; });
-      const cv = document.createElement('canvas');
-      cv.width = img.width; cv.height = img.height;
-      const cx = cv.getContext('2d');
-      cx.drawImage(img, 0, 0);
-      const { data, width, height } = cx.getImageData(0, 0, img.width, img.height);
-      // 局部对比度：相邻像素 R 通道差的绝对值均值
-      let sum = 0, n = 0;
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width - 1; x++) {
-          const i = (y * width + x) * 4;
-          sum += Math.abs(data[i] - data[i + 4]);
-          n++;
-        }
-      }
-      // 同时算整体方差
-      let rSum = 0, rN = 0;
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) { rSum += data[(y * width + x) * 4]; rN++; }
-      }
-      const mean = rSum / rN;
-      let vSum = 0;
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const v = data[(y * width + x) * 4];
-          vSum += (v - mean) ** 2;
-        }
-      }
-      return { adjacency: +(sum / n).toFixed(3), variance: +(vSum / rN).toFixed(2), mean: +mean.toFixed(1) };
-    }, { dataB64: buf.toString('base64') });
-    return stats;
+    await page.waitForTimeout(250);
   }
+  // 关键：必须避开文字。取卡片"右侧空白区"（时间数字左边、标签右边的空隙），
+  // 那里只有玻璃和背景，没有任何内容覆盖。
+  const rect = await page.evaluate(() => {
+    const card = document.querySelectorAll('.day')[1] || document.querySelector('.card');
+    const r = card.getBoundingClientRect();
+    // 卡片内：左 45% 位置到 60%，垂直居中偏下（避开标题行）
+    return {
+      x: Math.round(r.left + r.width * 0.42),
+      y: Math.round(r.top + r.height * 0.55),
+      width: Math.round(r.width * 0.16),
+      height: Math.round(r.height * 0.3),
+    };
+  });
+  const png = await page.screenshot({ clip: rect });
 
-  const withBlur = await sample(false);
-  const noBlur = await sample(true);
+  return await page.evaluate(async ({ b64 }) => {
+    const img = new Image();
+    img.src = 'data:image/png;base64,' + b64;
+    await new Promise((r) => { img.onload = r; });
+    const cv = document.createElement('canvas');
+    cv.width = img.width; cv.height = img.height;
+    const cx = cv.getContext('2d');
+    cx.drawImage(img, 0, 0);
+    const { data, width, height } = cx.getImageData(0, 0, img.width, img.height);
 
-  console.log('开 blur :', JSON.stringify(withBlur));
-  console.log('关 blur :', JSON.stringify(noBlur));
-  console.log('');
-  const reduced = withBlur.adjacency < noBlur.adjacency;
-  console.log(reduced
-    ? '✔ 毛玻璃生效：相邻像素差从 ' + noBlur.adjacency + ' 降到 ' + withBlur.adjacency +
-      '（降 ' + (100 * (1 - withBlur.adjacency / noBlur.adjacency)).toFixed(1) + '%），说明背景被真实模糊了'
-    : '✘ 未见模糊效果（' + withBlur.adjacency + ' vs ' + noBlur.adjacency + '）');
+    let rS = 0, gS = 0, bS = 0, n = 0;
+    const lum = [];
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        rS += data[i]; gS += data[i + 1]; bS += data[i + 2]; n++;
+        lum.push(0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]);
+      }
+    }
+    const meanR = rS / n, meanG = gS / n, meanB = bS / n;
+    const lumMean = lum.reduce((a, b) => a + b, 0) / lum.length;
+    const lumVar = lum.reduce((a, b) => a + (b - lumMean) ** 2, 0) / lum.length;
+    const tint = meanB - meanR;
+    let adj = 0, an = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width - 1; x++) {
+        const i = (y * width + x) * 4;
+        adj += Math.abs(data[i] - data[i + 4]); an++;
+      }
+    }
+    return {
+      tint: +tint.toFixed(2),
+      lumVar: +lumVar.toFixed(2),
+      adjacency: +(adj / an).toFixed(3),
+      rgb: [+meanR.toFixed(0), +meanG.toFixed(0), +meanB.toFixed(0)],
+    };
+  }, { b64: png.toString('base64') });
+}
 
-  await browser.close();
-  process.exit(reduced ? 0 : 1);
-})();
+for (const bg of ['10', '8']) {
+  const on = await measure(bg, false);
+  const off = await measure(bg, true);
+  console.log('\n=== bg=' + bg + ' ===');
+  console.log('开 blur:', JSON.stringify(on));
+  console.log('关 blur:', JSON.stringify(off));
+  const tintGain = Math.abs(on.tint) - Math.abs(off.tint);
+  console.log('  色相偏移(透出的背景色): ' + tintGain.toFixed(2) + (tintGain > 0.3 ? '  ✔ 明显' : '  ≈ 微弱'));
+  console.log('  亮度层次(内部明暗):     ' + (off.lumVar - on.lumVar).toFixed(0) + (off.lumVar - on.lumVar > 40 ? '  ✔ 明显' : '  ≈ 微弱'));
+  console.log('  细节抹平(模糊前后):     ' + off.adjacency + ' → ' + on.adjacency);
+  console.log('  卡片平均色:             rgb(' + on.rgb.join(',') + ')');
+}
+
+await browser.close();

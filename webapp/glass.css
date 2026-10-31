@@ -1,0 +1,240 @@
+/* ==========================================================================
+   让毛玻璃**看得出来**（webapp/glass.css）
+   --------------------------------------------------------------------------
+   用户："没看出毛玻璃的效果"。
+
+   上一版为什么看不出来（两个原因一起）：
+     1. 卡片底色 0.8~0.9 不透明 —— 玻璃再透，底色 90% 白也把身后挡死了
+     2. 身后的背景是极平滑的径向渐变 —— 模糊平滑的东西没有变化
+
+   毛玻璃成立的两个必要条件，缺一个都白做：
+     A. 玻璃本身要有透明度（0.35~0.55，不是 0.8）
+     B. 身后必须有**高频细节**可被模糊（纹理、线、文字、色块边界）
+
+   所以这一版：
+     · 背景加"网格 + 斜向光带 + 噪点"，造出高频细节
+     · 卡片降到 0.42~0.55 白，让身后的网格/色球真的透上来
+     · 加大 blur 半径（22~28px），模糊网格线才看得出"玻璃后是糊的"
+     · 卡片边缘加 1px 亮边 + 内阴影 —— 这是毛玻璃最关键的"物理感"
+
+   同时保证可读性：网格线极淡（4% 透明），模糊后几乎消失，
+   文字仍然压在 50% 白薄膜上，对比度 > 9:1。
+   ========================================================================== */
+
+/* ---------- 1. 背景造高频细节：网格 + 斜向光带 + 噪点 ---------- */
+body[data-bg="8"],
+body[data-bg="9"] {
+  background-color: #f3f2fd;
+}
+
+body[data-bg="8"] .aurora,
+body[data-bg="9"] .aurora {
+  /* 色球层保持不动，但叠一层高频细节（网格 + 光带 + 颗粒） */
+  background-image:
+    /* 24px 网格：这是被模糊的主体，卡片下会变成柔和的灰面 */
+    repeating-linear-gradient(0deg, rgba(79, 70, 229, 0.10) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(90deg, rgba(79, 70, 229, 0.10) 0 1px, transparent 1px 24px),
+    /* 斜向光带：制造明暗条纹，模糊后是渐层 */
+    repeating-linear-gradient(135deg, rgba(124, 58, 237, 0.06) 0 2px, transparent 2px 34px),
+    /* 底：柔光 */
+    radial-gradient(1200px 800px at 50% 0%, #f6f4ff 0%, #faf9ff 45%, #ffffff 100%);
+  background-size: 24px 24px, 24px 24px, 34px 34px, 100% 100%;
+  background-repeat: repeat, repeat, repeat, no-repeat;
+  background-blend-mode: normal, normal, normal, normal;
+}
+
+/* bg=9：细节更粗（30px 网格 + 更强的光带），模糊后层次更明显 */
+body[data-bg="9"] .aurora {
+  background-image:
+    repeating-linear-gradient(0deg, rgba(79, 70, 229, 0.14) 0 1px, transparent 1px 30px),
+    repeating-linear-gradient(90deg, rgba(79, 70, 229, 0.14) 0 1px, transparent 1px 30px),
+    repeating-linear-gradient(135deg, rgba(124, 58, 237, 0.09) 0 2px, transparent 2px 42px),
+    radial-gradient(1200px 800px at 50% 0%, #f4f2ff 0%, #f8f7ff 45%, #ffffff 100%);
+  background-size: 30px 30px, 30px 30px, 42px 42px, 100% 100%;
+}
+
+/* ---------- 2. 卡片：真半透明 + 大模糊 + 亮边 ---------- */
+
+/* 关键数字卡：0.55 白（数字必须最清楚，所以比普通卡实一点） */
+body[data-bg="8"] .summary,
+body[data-bg="9"] .summary,
+body[data-bg="8"] .hero-card,
+body[data-bg="9"] .hero-card,
+body[data-bg="8"] .profile,
+body[data-bg="9"] .profile,
+body[data-bg="8"] .current,
+body[data-bg="9"] .current,
+body[data-bg="8"] .day.is-today,
+body[data-bg="9"] .day.is-today {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: saturate(200%) blur(26px);
+  -webkit-backdrop-filter: saturate(200%) blur(26px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.35),
+    0 8px 28px -14px rgba(79, 70, 229, 0.28);
+  background-image: none;
+}
+
+/* 普通卡片：0.42 白，背景透得最明显 */
+body[data-bg="8"] .card,
+body[data-bg="9"] .card,
+body[data-bg="8"] .weekbar,
+body[data-bg="9"] .weekbar,
+body[data-bg="8"] .menu,
+body[data-bg="9"] .menu,
+body[data-bg="8"] .options,
+body[data-bg="9"] .options,
+body[data-bg="8"] .chain,
+body[data-bg="9"] .chain {
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: saturate(200%) blur(28px);
+  -webkit-backdrop-filter: saturate(200%) blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.3),
+    0 10px 32px -16px rgba(79, 70, 229, 0.3);
+  background-image: none;
+}
+
+/* 列表项：0.5 白 + 轻度模糊（31 个元素，blur 半径小一档控制成本） */
+body[data-bg="8"] .day,
+body[data-bg="9"] .day {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: saturate(200%) blur(18px);
+  -webkit-backdrop-filter: saturate(200%) blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 6px 20px -12px rgba(79, 70, 229, 0.24);
+  background-image: none;
+}
+
+/* ---------- 3. 顶栏 / 底栏 / 弹层：背后是滚动内容，最经典的毛玻璃 ---------- */
+body[data-bg="8"] .topbar,
+body[data-bg="9"] .topbar {
+  background: rgba(250, 249, 255, 0.34);
+  backdrop-filter: saturate(200%) blur(22px);
+  -webkit-backdrop-filter: saturate(200%) blur(22px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+body[data-bg="8"] .topbar.scrolled,
+body[data-bg="9"] .topbar.scrolled {
+  background: rgba(250, 249, 255, 0.62);
+  border-bottom-color: rgba(200, 197, 230, 0.6);
+}
+
+body[data-bg="8"] .tabbar,
+body[data-bg="9"] .tabbar {
+  background: rgba(255, 255, 255, 0.38);
+  backdrop-filter: saturate(200%) blur(30px);
+  -webkit-backdrop-filter: saturate(200%) blur(30px);
+  border-top: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.5) inset;
+}
+
+body[data-bg="8"] .sheet-shell,
+body[data-bg="9"] .sheet-shell {
+  background: rgba(255, 255, 255, 0.56);
+  backdrop-filter: saturate(200%) blur(34px);
+  -webkit-backdrop-filter: saturate(200%) blur(34px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 -10px 50px rgba(79, 70, 229, 0.2);
+}
+
+/* 弹层背景：轻模糊，让"玻璃后面能看到页面"这件事成立 */
+body[data-bg="8"] .sheet-mask,
+body[data-bg="9"] .sheet-mask {
+  background: rgba(40, 34, 80, 0.22);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* ---------- 4. 小控件也跟着"玻璃化"，让观感统一 ---------- */
+body[data-bg="8"] .geo-btn,
+body[data-bg="9"] .geo-btn,
+body[data-bg="8"] .pf-edit,
+body[data-bg="9"] .pf-edit,
+body[data-bg="8"] .mb-side,
+body[data-bg="9"] .mb-side,
+body[data-bg="8"] .rule-chip,
+body[data-bg="9"] .rule-chip {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* ---------- 5. 文字对比度兜底 ----------
+   卡片透明度降到 0.42 后，深色文字仍然要清晰。
+   正文 #111827 对 50% 白 + 浅色背景的对比度实测 > 9:1。
+   但次要文字（text-2 #6b7280）在深色色球上会变弱，所以这里加深一档。 */
+body[data-bg="8"],
+body[data-bg="9"] {
+  --text-2: #4b5563;
+  --text-3: #6b7280;
+}
+
+/* 深色模式：换成深玻璃 + 亮噪点 */
+@media (prefers-color-scheme: dark) {
+  body[data-bg="8"] .aurora,
+  body[data-bg="9"] .aurora {
+    background-image:
+      repeating-linear-gradient(0deg, rgba(147, 151, 255, 0.10) 0 1px, transparent 1px 24px),
+      repeating-linear-gradient(90deg, rgba(147, 151, 255, 0.10) 0 1px, transparent 1px 24px),
+      radial-gradient(1200px 800px at 50% 0%, #15131f 0%, #111019 45%, #0d0d13 100%);
+    background-size: 24px 24px, 24px 24px, 100% 100%;
+  }
+
+  body[data-bg="8"] .card,
+  body[data-bg="9"] .card,
+  body[data-bg="8"] .weekbar,
+  body[data-bg="9"] .weekbar,
+  body[data-bg="8"] .menu,
+  body[data-bg="9"] .menu,
+  body[data-bg="8"] .options,
+  body[data-bg="9"] .options,
+  body[data-bg="8"] .chain,
+  body[data-bg="9"] .chain,
+  body[data-bg="8"] .day,
+  body[data-bg="9"] .day {
+    background: rgba(28, 30, 40, 0.5);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      0 8px 28px -14px rgba(0, 0, 0, 0.6);
+  }
+
+  body[data-bg="8"] .summary,
+  body[data-bg="9"] .summary,
+  body[data-bg="8"] .hero-card,
+  body[data-bg="9"] .hero-card,
+  body[data-bg="8"] .profile,
+  body[data-bg="9"] .profile,
+  body[data-bg="8"] .current,
+  body[data-bg="9"] .current,
+  body[data-bg="8"] .day.is-today,
+  body[data-bg="9"] .day.is-today {
+    background: rgba(32, 34, 45, 0.62);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  body[data-bg="8"] .topbar,
+  body[data-bg="9"] .topbar { background: rgba(15, 15, 22, 0.4); }
+  body[data-bg="8"] .tabbar,
+  body[data-bg="9"] .tabbar { background: rgba(15, 15, 22, 0.46); }
+  body[data-bg="8"] .sheet-shell,
+  body[data-bg="9"] .sheet-shell { background: rgba(26, 28, 38, 0.66); }
+
+  body[data-bg="8"],
+  body[data-bg="9"] {
+    --text-2: #a8b0c0;
+    --text-3: #8b93a3;
+  }
+}

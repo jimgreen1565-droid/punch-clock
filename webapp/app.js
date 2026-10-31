@@ -1884,7 +1884,7 @@
   /* 首次进入自动试一次定位；不支持/非 HTTPS 时静默，等用户点按钮 */
   /** 背景变体：?bg=0(纯净) 1(照片头部+浅蒙版) 2(照片头部+深蒙版) 3(整屏照片) */
   function applyBgVariant() {
-    var n = (location.search.match(/bg=([0-9])/) || [])[1] || '8';
+    var n = (location.search.match(/bg=([0-9]+)/) || [])[1] || '10';
     document.body.setAttribute('data-bg', n);
     return n;
   }
