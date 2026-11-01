@@ -36,6 +36,11 @@ Page({
     // 云端模式：审批流与成员数据以服务端为准
     if (cloud.isReady()) {
       const me = await cloud.call('company', 'me');
+      if (!me || !me.ok || !me.data || !me.data.company) {
+        // 云函数未部署 / 未登录 → 退回本地数据，避免整页空白
+        this.refreshLocal();
+        return;
+      }
       if (me && me.ok && me.data && me.data.company) {
         this.setData({
           cloudMode: true,
@@ -113,7 +118,7 @@ Page({
     const boot = store.getBootInfo();
     const uid = boot.uid;
     const c = company.ensureCompany(uid, boot.nickname);
-    const role = company.roleOf(uid) || permissions ? company.roleOf(uid) : null;
+    const role = company.roleOf(uid);
 
     const members = company.getMembers()
       .filter((m) => m.status === 'active')
@@ -187,6 +192,23 @@ Page({
 
     if (this.data.cloudMode) {
       this.submitJoinCloud(code);
+      return;
+    }
+
+    // 本地离线模式：一台设备上只存在一家公司，加入"外部公司"在物理上不成立
+    if (this.data.isMember) {
+      const cur = company.getCompany();
+      if (cur && cur.inviteCode === code) {
+        wx.showToast({ title: '这是你自己公司的邀请码', icon: 'none' });
+        return;
+      }
+      wx.showModal({
+        title: '本地模式只有一家公司',
+        content:
+          '离线版在同一台设备上只保存一家公司，所以无法用邀请码加入外部公司。\n要验证「员工加入 + 管理员审批」，请部署云函数后走云端模式，并在另一台手机上用另一个微信号打开小程序。',
+        showCancel: false,
+        confirmText: '知道了',
+      });
       return;
     }
 

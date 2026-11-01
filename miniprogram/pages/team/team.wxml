@@ -44,13 +44,14 @@
     </view>
   </view>
 
-  <!-- 加入公司（非成员视角） -->
-  <view wx:if="{{!isMember}}" class="card join-entry">
-    <view class="section-label">加入公司</view>
+  <!-- 用邀请码加入（始终可见，任何身份都能看到输码框） -->
+  <view class="card join-entry">
+    <view class="section-label">用邀请码加入</view>
     <view class="muted join-entry-hint">输入管理员给你的 6 位邀请码</view>
     <input class="join-input" placeholder="例如 ZJNY62" maxlength="6" value="{{inviteInput}}" bindinput="onInviteInput" />
     <button class="btn-primary join-btn" bindtap="submitJoin">{{requireApproval ? '提交加入申请' : '加入公司'}}</button>
     <view class="muted join-entry-note" wx:if="{{requireApproval}}">提交后需要管理员审批，通过后你才能开始打卡。</view>
+    <view class="muted join-entry-note" wx:if="{{isMember}}">你已经在「{{companyName}}」里。想以员工身份验证审批流程，需要另一台设备上的另一个微信号（云端模式）。</view>
   </view>
 
   <!-- 邀请码（仅能邀请的角色） -->
