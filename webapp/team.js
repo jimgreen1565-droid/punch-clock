@@ -85,6 +85,16 @@
       html += '</div>';
     }
 
+    // ---- 用邀请码加入（任何身份都能看到，非成员在这里输码）----
+    html += '<div class="section-label">用邀请码加入</div>';
+    html += '<div class="card join-entry">';
+    html += '<div class="muted join-entry-hint">输入管理员给你的 6 位邀请码</div>';
+    html += '<input class="invite-input" id="inviteInput" maxlength="6" placeholder="例如 ZJNY62" value="" pattern="[A-Z0-9]{6}" autocomplete="off" spellcheck="false" />';
+    html += '<button class="btn-primary join-btn" id="submitJoin">' + (requireApproval ? '提交加入申请' : '加入公司') + '</button>';
+    html += '<div class="muted join-entry-note" style="margin-top:var(--s3)">提交后需要管理员审批，通过后你才能开始打卡。</div>';
+    html += '<div class="muted join-entry-note" style="margin-top:var(--s3)" id="joinEntryHint">你已经在「' + h(company ? company.name : '') + '」里。想以员工身份验证审批流程，需要另一台设备上的另一个账号（云端模式）。</div>';
+    html += '</div>';
+
     // ---- 邀请码（只有管理员能看到完整码）----
     if (canInvite) {
       html += '<div class="section-label">邀请成员</div>';
@@ -181,6 +191,50 @@
           },
         });
       };
+    }
+
+    // ---- 用邀请码加入（任何身份都能看到的输入框）----
+    var joinInput = document.getElementById('inviteInput');
+    var submitJoinBtn = document.getElementById('submitJoin');
+    function submitJoinFromInput() {
+      var code = (joinInput.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      joinInput.value = code;
+      if (code.length !== 6) { toast('请输入 6 位邀请码'); return; }
+      var needsApproval = C.getRequireApproval();
+      if (needsApproval) {
+        U.openSheet({
+          title: '提交加入申请',
+          body: '会新建一个本机身份并用当前邀请码提交申请，然后自动切换到该身份，方便你审批。',
+          input: '',
+          placeholder: '简单说明一下（可选），例如"我是市场部的张三"',
+          confirmText: '提交申请',
+          onConfirm: function (val) {
+            var r = C.applyToJoin(code, '新员工', String(val || '').trim());
+            toast(r.message);
+            if (r.ok) U.reloadWithIdentity();
+          },
+        });
+        return;
+      }
+      U.openSheet({
+        title: '加一个员工身份',
+        body: '会新建一个本机身份并用当前邀请码加入，然后自动切换到该身份。',
+        input: '张三',
+        placeholder: '员工昵称',
+        confirmText: '加入并切换',
+        onConfirm: function (val) {
+          var name = (val || '张三').trim();
+          var r = C.joinByInvite(code, name);
+          toast(r.message);
+          if (r.ok) U.reloadWithIdentity();
+        },
+      });
+    }
+    if (submitJoinBtn) submitJoinBtn.onclick = submitJoinFromInput;
+    if (joinInput) {
+      joinInput.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') submitJoinFromInput();
+      });
     }
 
     var addTrial = document.getElementById('addTrial');

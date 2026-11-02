@@ -36,6 +36,52 @@
   margin-bottom: var(--s2);
 }
 
+/* ---------- 用邀请码加入（非成员输入框） ---------- */
+.join-entry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.join-entry-hint,
+.join-entry-note {
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.invite-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px var(--s3);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 18px;
+  letter-spacing: 4px;
+  text-align: center;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.invite-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+.invite-input::placeholder {
+  letter-spacing: 6px;
+  color: var(--text-3);
+}
+
+.join-btn {
+  width: 100%;
+  justify-content: center;
+}
+
 .invite-code {
   flex: 1;
   font-family: ui-monospace, Menlo, Consolas, monospace;
